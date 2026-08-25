@@ -15,6 +15,7 @@ def is_numeric(val):
 def max_float():
     return np.float32(np.finfo(np.float32).max).item()
 
+
 @pytest.fixture
 def band_processor():
     """Create a processor with band strategy"""
@@ -76,12 +77,8 @@ def sample_target_data():
 
 def test_init_band_strategy():
     """Test initialization with band strategy"""
-    processor = DetectionBandProcessor(
-        detection_band=(0.5, 1.5)
-    )
+    processor = DetectionBandProcessor(detection_band=(0.5, 1.5))
     assert processor.detection_band == (0.5, 1.5)
-
-
 
 
 def test_init_band_strategy_detection_band_length():
@@ -96,6 +93,7 @@ def test_init_band_strategy_detection_band_ordering():
         AssertionError, match="Lower bound must be less than upper bound"
     ):
         DetectionBandProcessor(detection_band=(1.5, 0.5))
+
 
 def test_estimate_error_band_strategy(
     band_processor,
@@ -114,32 +112,30 @@ def test_estimate_error_band_strategy(
     assert error >= 0
 
 
-def test_estimate_error_empty_output(
-    band_procesor, sample_target_data, max_float
-):
+def test_estimate_error_empty_output(band_processor, sample_target_data, max_float):
     """Test estimate_error returns MAX_FLOAT for empty output"""
     outputs = {
         "confirmation_incidence_report": pl.DataFrame(),
         "prevalence_report": pl.DataFrame(),
     }
-    error = band_procesor.estimate_error(outputs, sample_target_data)
+    error = band_processor.estimate_error(outputs, sample_target_data)
     assert error == max_float
 
 
 def test_estimate_error_empty_prevalence(
-    band_procesor, sample_confirmation_report, sample_target_data, max_float
+    band_processor, sample_confirmation_report, sample_target_data, max_float
 ):
     """Test estimate_error returns MAX_FLOAT when prevalence_report is empty"""
     outputs = {
         "confirmation_incidence_report": sample_confirmation_report,
         "prevalence_report": pl.DataFrame(),
     }
-    error = band_procesor.estimate_error(outputs, sample_target_data)
+    error = band_processor.estimate_error(outputs, sample_target_data)
     assert error == max_float
 
 
 def test_estimate_error_deaths_exceed_threshold(
-    band_procesor, sample_confirmation_report, sample_target_data, max_float
+    band_processor, sample_confirmation_report, sample_target_data, max_float
 ):
     """Test estimate_error returns MAX_FLOAT when deaths exceed threshold"""
     prevalence_report = pl.DataFrame(
@@ -153,12 +149,12 @@ def test_estimate_error_deaths_exceed_threshold(
         "confirmation_incidence_report": sample_confirmation_report,
         "prevalence_report": prevalence_report,
     }
-    error = band_procesor.estimate_error(outputs, sample_target_data)
+    error = band_processor.estimate_error(outputs, sample_target_data)
     assert error == max_float
 
 
 def test_estimate_error_does_not_cover_target_window(
-    band_procesor, sample_target_data, max_float
+    band_processor, sample_target_data, max_float
 ):
     """Test estimate_error returns MAX_FLOAT when simulation doesn't cover target"""
     confirmation_report = pl.DataFrame(
@@ -179,12 +175,12 @@ def test_estimate_error_does_not_cover_target_window(
         "confirmation_incidence_report": confirmation_report,
         "prevalence_report": prevalence_report,
     }
-    error = band_procesor.estimate_error(outputs, sample_target_data)
+    error = band_processor.estimate_error(outputs, sample_target_data)
     assert error == max_float
 
 
 def test_estimate_error_geq_flag_rejects_underestimate(
-    band_procesor, sample_confirmation_report, sample_prevalence_report, max_float
+    band_processor, sample_confirmation_report, sample_prevalence_report, max_float
 ):
     """Test estimate_error rejects underestimate"""
     # Create data where model underestimates
@@ -216,12 +212,12 @@ def test_estimate_error_geq_flag_rejects_underestimate(
         "confirmation_incidence_report": confirmation_report,
         "prevalence_report": prevalence_report,
     }
-    error = band_procesor.estimate_error(outputs, target_df)
+    error = band_processor.estimate_error(outputs, target_df)
     # Should return MAX_FLOAT due to underestimate with geq_flag=True
     assert error == max_float
 
 
-def test_get_target_data_basic(band_procesor, tmp_path):
+def test_get_target_data_basic(band_processor, tmp_path):
     """Test get_target_data reads and processes target data"""
     # Create temporary CSV files
     confirmation_file = tmp_path / "confirmation.csv"
@@ -250,14 +246,14 @@ def test_get_target_data_basic(band_procesor, tmp_path):
         "deaths_threshold": deaths_file,
     }
 
-    result = band_procesor.get_target_data(target_data_file)
+    result = band_processor.get_target_data(target_data_file)
     # May return empty if filtering doesn't match expectations - that's ok
     if result.height > 0:
         assert "cumulative_confirmation_incidence" in result.columns
         assert "epiweek_startdate" in result.columns
 
 
-def test_get_target_data_filters_before_threshold(band_procesor, tmp_path):
+def test_get_target_data_filters_before_threshold(band_processor, tmp_path):
     """Test get_target_data filters data before threshold_date + 7 days"""
     confirmation_file = tmp_path / "confirmation.csv"
     deaths_file = tmp_path / "deaths_threshold.csv"
@@ -278,14 +274,14 @@ def test_get_target_data_filters_before_threshold(band_procesor, tmp_path):
         "deaths_threshold": deaths_file,
     }
 
-    result = band_procesor.get_target_data(target_data_file)
+    result = band_processor.get_target_data(target_data_file)
     # Should only include data from threshold_date + 7 days onward
     if result.height > 0:
         min_date = result["epiweek_startdate"].min()
         assert min_date >= date(2025, 1, 1)
 
 
-def test_get_target_data_filters_partial_epiweeks(band_procesor, tmp_path):
+def test_get_target_data_filters_partial_epiweeks(band_processor, tmp_path):
     """Test get_target_data filters out partial epiweeks"""
     confirmation_file = tmp_path / "confirmation.csv"
     deaths_file = tmp_path / "deaths_threshold.csv"
@@ -308,13 +304,13 @@ def test_get_target_data_filters_partial_epiweeks(band_procesor, tmp_path):
         "deaths_threshold": deaths_file,
     }
 
-    result = band_procesor.get_target_data(target_data_file)
+    result = band_processor.get_target_data(target_data_file)
     # All epiweeks should have 7 days
     if result.height > 0:
         assert all(result["num_days_in_epiweek"] == 7)
 
 
-def test_get_target_data_returns_endpoints(band_procesor, tmp_path):
+def test_get_target_data_returns_endpoints(band_processor, tmp_path):
     """Test get_target_data returns only first and last epiweeks"""
     confirmation_file = tmp_path / "confirmation.csv"
     deaths_file = tmp_path / "deaths_threshold.csv"
@@ -333,7 +329,7 @@ def test_get_target_data_returns_endpoints(band_procesor, tmp_path):
         "deaths_threshold": deaths_file,
     }
 
-    result = band_procesor.get_target_data(target_data_file)
+    result = band_processor.get_target_data(target_data_file)
     # Should return exactly 2 rows (first and last epiweeks)
     if result.height > 0:
         assert result.height == 2
@@ -341,12 +337,10 @@ def test_get_target_data_returns_endpoints(band_procesor, tmp_path):
         assert epiweeks[0] < epiweeks[1]
 
 
-def test_process_outputs_full_workflow(
-    band_procesor, sample_confirmation_report
-):
+def test_process_outputs_full_workflow(band_processor, sample_confirmation_report):
     """Test process_outputs end-to-end"""
     outputs = {"confirmation_incidence_report": sample_confirmation_report}
-    result = band_procesor.process_outputs(outputs)
+    result = band_processor.process_outputs(outputs)
 
     assert result.height > 0
     assert "confirmation_incidence" in result.columns
@@ -363,14 +357,14 @@ def test_process_outputs_full_workflow(
 
 
 def test_estimate_error_missing_prevalence_report(
-    band_procesor, sample_confirmation_report, sample_target_data, max_float
+    band_processor, sample_confirmation_report, sample_target_data, max_float
 ):
     """Test estimate_error returns MAX_FLOAT when prevalence_report is missing"""
     outputs = {"confirmation_incidence_report": sample_confirmation_report}
     # Missing prevalence_report will cause early returns in estimate_error
     # The exact behavior depends on implementation details
     try:
-        error = band_procesor.estimate_error(outputs, sample_target_data)
+        error = band_processor.estimate_error(outputs, sample_target_data)
         # If it doesn't raise, it should return MAX_FLOAT or similar
         assert error == max_float or is_numeric(error)
     except (AssertionError, KeyError):
@@ -379,9 +373,9 @@ def test_estimate_error_missing_prevalence_report(
 
 
 def test_estimate_error_missing_confirmation_report(
-    band_procesor, sample_prevalence_report, sample_target_data
+    band_processor, sample_prevalence_report, sample_target_data
 ):
     """Test estimate_error raises KeyError when confirmation_incidence_report is missing"""
     outputs = {"prevalence_report": sample_prevalence_report}
     with pytest.raises(KeyError, match="confirmation_incidence_report"):
-        band_procesor.estimate_error(outputs, sample_target_data)
+        band_processor.estimate_error(outputs, sample_target_data)

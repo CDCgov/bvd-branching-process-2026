@@ -50,10 +50,7 @@ fn campaign_at_cases(count: usize) -> Result<SurveillanceCampaignDelayConfig> {
 }
 
 fn base_params() -> Result<ParameterValues> {
-    let config = concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/experiments/sitrep_validation/default_ixa_config.json"
-    );
+    let config = concat!(env!("CARGO_MANIFEST_DIR"), "/input/input.json");
     let mut params = Parameters::from_file(config)?;
 
     // A single spillover goes extinct ~40% of the time at concentration 0.45

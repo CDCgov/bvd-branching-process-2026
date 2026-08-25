@@ -11,7 +11,6 @@ import os
 # pyplot import happens in the pipeline modules the tests exercise.
 os.environ.setdefault("MPLBACKEND", "Agg")
 
-import json
 from pathlib import Path
 
 import pytest

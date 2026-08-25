@@ -1,20 +1,25 @@
 """Unit tests for calibration-time report pruning (the speed win)."""
+
 from vhf_pipeline.model.context import disable_unused_reports
 from vhf_pipeline.model.data_processors import NaturalHistoryProcessor
 
+
 class TestProcessor(NaturalHistoryProcessor):
-    required_reports = (
-        "prevalence_report",
-    )
+    required_reports = ("prevalence_report",)
+
     def get_target_data():
         pass
+
     def estimate_error():
         pass
+
     def process_outputs():
         pass
 
+
 def test_processors_declare_required_reports():
     assert TestProcessor().required_reports == ("prevalence_report",)
+
 
 def test_disable_unused_reports_turns_off_only_unneeded_written_reports():
     params = {

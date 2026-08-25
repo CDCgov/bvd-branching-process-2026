@@ -2,13 +2,14 @@
 A config file is a dicitonary of objects referenced during calibration and simulation of the `VHFModel`. It has some required components and some optional components that allow for easier user-specified flexibility
 
 ## Required parameters
-
-
+```json
 {
-    "priors_file": "experiments/bvd_early_phase/priors.json",
-    "target_data_file": "threshold_data.csv",
-    "strategy": "bvd_threshold",
-    "default_ixa_file": "experiments/bvd_early_phase/default_params.json",
+    "priors_file": "priors.json",
+    "target_data_file": {
+        "data_set": "data.csv"
+    },
+    "strategy": "detection_band",
+    "default_ixa_file": "default_params.json",
     "exe_file": "target/release/vhf_model",
     "force_overwrite": true,
     "outputs_to_read": [

@@ -10,10 +10,7 @@ use ixa::{Context, ContextGlobalPropertiesExt};
 
 /// Representative outbreak params
 fn base_params() -> Result<ParameterValues> {
-    let config = concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/experiments/bvd_early_phase/default_params.json"
-    );
+    let config = concat!(env!("CARGO_MANIFEST_DIR"), "/input/input.json");
     let mut params = Parameters::from_file(config)?;
 
     // Ensure take-off
