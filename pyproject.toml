@@ -1,0 +1,47 @@
+[project]
+name = "vhf_pipeline"
+version = "0.1.1"
+description = "Branching process model and analysis pipeline for VHF outbreaks"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "jupyter>=1.1.1",
+    "matplotlib>=3.10.8",
+    "numpy>=2.3.4",
+    "pyarrow>=23.0.0",
+    "pytest>=9.0.3",
+    "scipy>=1.16.3",
+    "cfa-mrp",
+    "calibrationtools",
+    "dotenv>=0.9.9",
+    "seaborn>=0.13.2",
+    "polars>=1.40.1",
+    "griddler",
+    "epiweeks>=2.4.0",
+    "requests>=2.31.0",
+    "geopandas>=1.1.4",
+]
+
+[project.scripts]
+vhf = "vhf_pipeline.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.8.13,<0.9.0"]
+build-backend = "uv_build"
+
+# Python source lives in python/ so it never collides with the Rust crate in src/.
+# This matches maturin's mixed-layout `python-source`, so adding a pyo3 extension
+# later is a build-backend swap, not a re-org.
+[tool.uv.build-backend]
+module-root = "python"
+
+[tool.uv.sources]
+calibrationtools = { git = "https://github.com/CDCgov/cfa-calibration-tools.git" }
+griddler = { git = "https://github.com/CDCgov/pygriddler.git" }
+
+[tool.uv]
+package = true
+
+[tool.pydoclint]
+style = 'google'
+exclude = '\.git|tests|/pipeline/|/workflows/'

@@ -1,0 +1,117 @@
+{
+    "evdmodel.Parameters": {
+        "seed": 1234,
+        "track_susceptibles": true,
+        "initialization": {
+            "start_date": "2026-01-15",
+            "initial_cases": {
+                "SpilloverEvent": {
+                    "days_since_start": 30.0,
+                    "exposures": 1
+                }
+            }
+        },
+        "offspring_distribution": {"NegativeBinomial": {"mean": 3.0, "concentration": 0.45}},
+        "generation_interval_distribution": {"Uniform": {"min": 7.0, "max": 17.0}},
+        "presymptomatic_transmission_probability": 0.0,
+        "hospitalization_probability": 0.52,
+        "hospitalization_delay_distribution": {"Fixed": {"delay": 4.9}},
+        "testing_config": {
+            "deploy": true,
+            "sample_collection_delay": {"Fixed": {"delay": 1.0}},
+            "testing_rate": {
+                "StepDailyCapacity": {
+                    "initial_capacity": 0.0,
+                    "updated_capacity": 50.0,
+                    "trigger": {
+                        "Date": {
+                            "date": "2026-05-30"
+                        }
+                    }
+                }
+            }
+        },
+        "etu_transfer_delay": 1.0,
+        "quarantine_transmission_probability": 0.0,
+        "clinical_transmission_probability": 0.5,
+        "etu_transmission_probability": 0.0,
+        "active_detection_probability": 0.8,
+        "passive_detection_probability": 0.5,
+        "active_detection_delay_distribution": {"Fixed": {"delay": 4.0}},
+        "passive_detection_delay_distribution": {"Fixed": {"delay": 5.0}},
+        "surveillance_campaign_delay": {
+            "deploy": true,
+            "trigger": {
+                "Date": {
+                    "date": "2026-03-15"
+                }
+            },
+            "distribution": {"Fixed": {"delay": 2.0}}
+        },
+        "recovery_delay_distribution": {"Fixed": {"delay": 9.0}},
+        "case_fatality_ratio": 0.54,
+        "mortality_delay_distribution": {"Fixed": {"delay": 7.9}},
+        "transmission_chain_report": {
+            "write": true,
+            "filename": "transmission_report.csv"
+        },
+        "rt_report": {
+            "write": true,
+            "filename": "rt_report_daily.csv"
+        },
+        "offspring_distribution_report": {
+            "write": true,
+            "filename": "rt_report_linelist.csv"
+        },
+        "prevalence_report": {
+            "write": true,
+            "filename": "person_count_detailed.csv",
+            "period": 1.0
+        },
+        "confirmation_incidence_report": {
+            "write": true,
+            "filename": "incidence_report.csv",
+            "period": 1.0
+        },
+        "symptom_onset_report": {
+            "write": true,
+            "filename": "symptom_onset_report.csv",
+            "period": 1.0,
+            "trigger": {"SurveillanceCampaign": {
+                "delay": 5.0
+            }}
+        },
+        "shared_index_contact_probability": 0.5,
+        "vaccination": {
+            "available": true,
+            "efficacy": 0.84,
+            "protection_delay_distribution": {"Fixed": {"delay": 10.0}},
+            "vaccination_campaigns": {
+                "ring": {
+                    "deploy": true,
+                    "trigger": {"Date": {"date": "2026-03-15"}},
+                    "start_delay": 7.0
+                },
+                "geographic": {
+                    "deploy": true,
+                    "trigger": {"Date": {"date": "2026-03-15"}},
+                    "start_delay": 14.0,
+                    "max_prevalence": 0.8,
+                    "schedule": {
+                        "distribution": {"Uniform": {"min": 0.0, "max": 30.0}}
+                    }
+                }
+            }
+        },
+        "end_run_conditions": {
+            "max_time": 120.0,
+            "max_deaths": 5000,
+            "max_cases": 10000
+        },
+        "offspring_intervention": {
+            "deploy": true,
+            "trigger": "SurveillanceCampaign",
+            "scalar": 1.0
+        }
+    }
+}

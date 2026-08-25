@@ -1,0 +1,18 @@
+[tasks.build]
+description = "Build the rust binaries"
+run = "uv run cargo build -r"
+sources = ["Cargo.toml", "src/**/*.rs"]
+outputs = ["target/release/vhf_model"]
+
+[tasks.bench]
+description = "Run the Criterion benchmarks (e.g. the projection death-trigger bench)"
+# Trailing `--` forwards extra args to the bench harness, e.g.
+# `mise run bench -- --save-baseline before` or `mise run bench -- --test`.
+run = "cargo bench --"
+
+[tasks.vhf_model]
+description = "Run the MRP model using the default ixa config file."
+run = [
+    "uv run cargo build -r",
+    "uv run vhf model run -f -v"
+]
