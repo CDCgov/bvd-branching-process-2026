@@ -16,3 +16,15 @@ run = [
     "uv run cargo build -r",
     "uv run vhf model run -f -v"
 ]
+
+[tasks.detection]
+description = "run the symptom onset calibration workflow"
+run = [
+    "uv run vhf workflow detection -o experiments/bvd/detection"
+]
+
+[tasks.test-workflow]
+description = "run the symptom onset calibration workflow"
+run = [
+    "uv run vhf workflow detection -o experiments/test/detection -c experiments/detection/test_config.json --no-cache"
+]

@@ -30,7 +30,7 @@ The Rust model lives in `src/` (crate `vhf_model`, binary `target/release/vhf_mo
 
 - `vhf_pipeline/model/` — bindings to the ixa model: the `VHFModel` runner (shells out to the compiled binary today), calibration/projection contexts, and output handlers. This is the single seam between Python and Rust.
 - `vhf_pipeline/pipeline/` — reusable pipeline stages (`calibrate`, `analytics`, `binning`, `figures`), each runnable on its own.
-- `vhf_pipeline/workflows/` — named end-to-end workflows that compose the stages in order: `mmwr` runs the full death-threshold workstream. `vhf workflow <name>` dispatches by name, so adding a workflow is just a new module here.
+- `vhf_pipeline/workflows/` — named end-to-end workflows that compose the stages in order: `detection` runs the full threshold and detection range workstream. `vhf workflow <name>` dispatches by name, so adding a workflow is just a new module here.
 - `vhf_pipeline/cli/` — the `vhf` entry point that drives all of the above: `run_model.py` builds the `vhf model` group (`run`, `calibrate`) and `run_workflow.py` builds the `vhf workflow` group, assembled in `__init__.py`.
 - `vhf_pipeline/provenance.py` — builds and writes the per-run `manifest.json` (stdlib-only). Workflows opt in by overriding `Workflow.manifest_dir`; the base class writes the manifest before the run starts.
 

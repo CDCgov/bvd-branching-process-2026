@@ -179,7 +179,7 @@ def test_estimate_error_does_not_cover_target_window(
     assert error == max_float
 
 
-def test_estimate_error_geq_flag_rejects_underestimate(
+def test_estimate_error_geq_rejects_underestimate(
     band_processor, sample_confirmation_report, sample_prevalence_report, max_float
 ):
     """Test estimate_error rejects underestimate"""
@@ -213,7 +213,7 @@ def test_estimate_error_geq_flag_rejects_underestimate(
         "prevalence_report": prevalence_report,
     }
     error = band_processor.estimate_error(outputs, target_df)
-    # Should return MAX_FLOAT due to underestimate with geq_flag=True
+    # Should return MAX_FLOAT due to underestimated incidence
     assert error == max_float
 
 

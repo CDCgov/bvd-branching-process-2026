@@ -47,7 +47,7 @@ def build_manifest(
     """Assemble the provenance manifest for a run.
 
     Args:
-        command: How the run was invoked, e.g. ``"workflow mmwr"``.
+        command: How the run was invoked, e.g. ``"workflow detection"``.
         params: The resolved arguments the run was given.
         input_files: ``(label, path)`` pairs of input files to hash, e.g. the
             config and griddle, so the manifest pins their exact contents.

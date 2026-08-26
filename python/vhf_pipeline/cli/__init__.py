@@ -2,7 +2,7 @@
 
 Command groups:
 - ``model``      run the ixa model (``run``) or a calibration (``calibrate``)
-- ``workflow``   run a named end-to-end workflow (e.g. ``mmwr``)
+- ``workflow``   run a named end-to-end workflow (e.g. ``detection``)
 - ``plot``       diagnostics from a finished run (e.g. ``pairs``)
 """
 

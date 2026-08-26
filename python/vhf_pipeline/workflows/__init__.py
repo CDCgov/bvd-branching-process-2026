@@ -8,6 +8,6 @@ importing every workflow (and its heavy plotting deps) up front.
 
 from .base import Workflow
 
-WORKFLOWS = {}
+WORKFLOWS = {"detection": "detection_range"}
 
 __all__ = ["WORKFLOWS", "Workflow"]

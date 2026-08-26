@@ -1,0 +1,6 @@
+{
+    "schema": "v0.3",
+    "parameters": {
+        "passive_detection_probability": {"vary": [1.0]}
+    }
+}

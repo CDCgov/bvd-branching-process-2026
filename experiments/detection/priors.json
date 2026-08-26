@@ -1,0 +1,74 @@
+{
+    "priors": {
+        "SpilloverEvent.days_since_start": {
+            "distribution": "normal",
+            "parameters": {
+                "mean": 159.0,
+                "std_dev": 27.98
+            }
+        },
+        "offspring_distribution.NegativeBinomial.mean": {
+            "distribution": "lognormal",
+            "parameters": {
+                "mean": 1.0533,
+                "std_dev": 0.143
+            }
+        },
+        "offspring_distribution.NegativeBinomial.concentration": {
+            "distribution": "uniform",
+            "parameters": {
+                "min": 0.02,
+                "max": 2.2
+            }
+        },
+        "generation_interval_distribution.OffsetWeibull.offset": {
+            "distribution": "uniform",
+            "parameters": {
+                "min": 5.7,
+                "max": 11.3
+            }
+        },
+        "generation_interval_distribution.OffsetWeibull.scale": {
+            "distribution": "uniform",
+            "parameters": {
+                "min": 5.4,
+                "max": 10.07
+            }
+        },
+        "recovery_delay_distribution.Fixed.delay": {
+            "distribution": "uniform",
+            "parameters": {
+                "min": 9.9,
+                "max": 10.0
+            }
+        },
+        "mortality_delay_distribution.Fixed.delay": {
+            "distribution": "uniform",
+            "parameters": {
+                "min": 9.0,
+                "max": 11.4
+            }
+        },
+        "testing_config.sample_collection_delay.Gamma.rate": {
+            "distribution": "lognormal",
+            "parameters": {
+                "mean": 0.0,
+                "std_dev": 1.0
+            }
+        },
+        "testing_config.sample_collection_delay.Gamma.shape": {
+            "distribution": "uniform",
+            "parameters": {
+                "min": 1.0,
+                "max": 14.0
+            }
+        },
+        "offspring_intervention.scalar": {
+            "distribution": "beta",
+            "parameters": {
+                "alpha": 5.0,
+                "beta": 2.0
+            }
+        }
+    }
+}
