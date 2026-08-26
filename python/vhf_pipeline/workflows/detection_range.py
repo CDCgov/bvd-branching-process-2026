@@ -35,7 +35,6 @@ MAX_DATA_DATE = dt.date(2026, 8, 10)  # The last date of the data used for calib
 INTERVENTION_START_DATE = dt.date(2026, 5, 24)  # The date of the interventions
 OUTBREAK_ISO3C_EXTENT = ["COD"]
 
-
 @dataclass(frozen=True)
 class DetectionRangeArgs:
     output_subdir: str = ""
@@ -50,7 +49,6 @@ class DetectionRangeArgs:
     projection_date: dt.date = PROJECTION_DATE
     iso3c_codes: list[ISO3C_VALUES] = (OUTBREAK_ISO3C_EXTENT,)
 
-
 class CacheRefresh:
     def __init__(self, flag: bool = False) -> None:
         self.flag = flag
@@ -59,7 +57,6 @@ class CacheRefresh:
         # don't replace a previously "true" refresh flag
         if not self.flag:
             self.flag = new_flag
-
 
 class DetectionRangeWorkflow(Workflow[DetectionRangeArgs]):
     """The full BVD detection band workstream"""
@@ -140,7 +137,6 @@ class DetectionRangeWorkflow(Workflow[DetectionRangeArgs]):
             projection_date=ns.projection_date,
             iso3c_codes=ns.iso3c_codes,
         )
-
     def manifest_dir(self, args: DetectionRangeArgs) -> Path:
         return paths.output_dir(args.output_subdir)
 
