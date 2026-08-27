@@ -57,10 +57,9 @@ def projection_config(base_config: dict, model_binary) -> dict:
 
 def read_projection_result(output_dir):
     inputs = pl.read_csv(output_dir / "projection" / "all_simulation_inputs.csv")
-    # Use the raw prevalence report rather than all_simulations.csv: the
-    # detection_band strategy produces an empty all_simulations.csv when
-    # max_time is too short to accumulate any confirmed cases, which causes
-    # polars to infer every column as Utf8 on CSV round-trip.
+    # Use the raw prevalence report rather than all_simulations.csv, which is
+    # empty for the detection_band strategy when max_time is too short to
+    # accumulate any confirmed cases.
     outputs = pl.read_csv(output_dir / "projection" / "all_prevalence_reports.csv")
     return (
         inputs.join(outputs, on="particle_id")
@@ -69,7 +68,9 @@ def read_projection_result(output_dir):
             "passive_detection_probability",
             "offspring_distribution.NegativeBinomial.concentration",
             "date",
+            "alive",
             "infection_status",
+            "case_status",
         )
         .drop("particle_id")
     )
@@ -79,9 +80,11 @@ def test_projection_griddle_matches_dataframe(tmp_path, base_config, model_binar
     population = ParticlePopulation(states=[{"seed": 0}, {"seed": 1}, {"seed": 2}])
     particles_from_griddle = population.join(griddle_scenarios())
     particles_from_dataframe = population.join(scenario_grid())
-    
+
     griddle_output = tmp_path / "griddle"
-    ctx = ProjectionContext(projection_config(base_config, model_binary), griddle_output)
+    ctx = ProjectionContext(
+        projection_config(base_config, model_binary), griddle_output
+    )
     ctx.run(particles=particles_from_griddle)
     ctx.save(process_outputs=False)
 

@@ -1,5 +1,4 @@
-"""Underdetection range workflow: the full BVD case detection calibration and scenario analysis
-"""
+"""Underdetection range workflow: the full BVD case detection calibration and scenario analysis"""
 
 import datetime as dt
 import json
@@ -36,6 +35,7 @@ MAX_DATA_DATE = dt.date(2026, 8, 10)  # The last date of the data used for calib
 INTERVENTION_START_DATE = dt.date(2026, 5, 24)  # The date of the interventions
 OUTBREAK_ISO3C_EXTENT = ["COD"]
 
+
 @dataclass(frozen=True)
 class DetectionRangeArgs:
     output_subdir: str = ""
@@ -50,6 +50,7 @@ class DetectionRangeArgs:
     projection_date: dt.date = PROJECTION_DATE
     iso3c_codes: list[ISO3C_VALUES] = (OUTBREAK_ISO3C_EXTENT,)
 
+
 class CacheRefresh:
     def __init__(self, flag: bool = False) -> None:
         self.flag = flag
@@ -58,6 +59,7 @@ class CacheRefresh:
         # don't replace a previously "true" refresh flag
         if not self.flag:
             self.flag = new_flag
+
 
 class DetectionRangeWorkflow(Workflow[DetectionRangeArgs]):
     """The full BVD detection band workstream"""
@@ -138,7 +140,7 @@ class DetectionRangeWorkflow(Workflow[DetectionRangeArgs]):
             projection_date=ns.projection_date,
             iso3c_codes=ns.iso3c_codes,
         )
-    
+
     def manifest_dir(self, args: DetectionRangeArgs) -> Path:
         return paths.output_dir(args.output_subdir)
 
@@ -182,7 +184,9 @@ class DetectionRangeWorkflow(Workflow[DetectionRangeArgs]):
         )
 
         ascertainment_scenarios = read_griddle(args.scenarios)
-        assert load_intervention_date(args.main_config) == args.intervention_start_date, (
+        assert (
+            load_intervention_date(args.main_config) == args.intervention_start_date
+        ), (
             f"Intervention start date in config file ({load_intervention_date(args.main_config)}) does not match the expected date ({args.intervention_start_date})."
         )
 

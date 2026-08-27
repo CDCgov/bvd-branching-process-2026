@@ -4,8 +4,8 @@ import pickle
 from collections.abc import Mapping
 from pathlib import Path
 
-import matplotlib.cm as mcm
 import matplotlib
+import matplotlib.cm as mcm
 import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
 import matplotlib.transforms as mtransforms

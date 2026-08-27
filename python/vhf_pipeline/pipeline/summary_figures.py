@@ -13,7 +13,6 @@ from vhf_pipeline.utils import (
     categorize_by_breaks,
     get_cumulative_symptomatic_cases,
     load_intervention_date,
-    read_griddle,
 )
 
 

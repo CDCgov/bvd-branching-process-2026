@@ -104,7 +104,7 @@ def test_pipeline_end_to_end(tmp_path, base_config, monkeypatch):
     cfg = base_config
     # Shrink to 2 particles and accept all — this test checks pipeline wiring, not fit.
     cfg["calibration"]["generation_particle_count"] = 2
-    cfg["calibration"]["tolerance_values"] = [float("inf")]
+    cfg["calibration"]["tolerance_values"] = [1.0]
     # Trigger symptom_onset_report before the projection ends (~2026-05-16 with
     # max_cases=70000) so that all_symptom_onset_reports.csv is written with data.
     cfg["projection"]["default_ixa_overrides"]["symptom_onset_report"] = {

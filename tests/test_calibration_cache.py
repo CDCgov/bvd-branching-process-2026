@@ -241,12 +241,13 @@ def test_calibrate_threshold_cache_hit_skips_run(tmp_path, monkeypatch):
     monkeypatch.setenv("OUTPUT_DIR", str(tmp_path / "out"))
     monkeypatch.setenv("DATA_INPUT_DIR", str(tmp_path / "data"))
     (tmp_path / "data").mkdir()
-    (tmp_path / "data" / "threshold_data_500.csv").write_text("threshold,count\n500,1\n")
+    (tmp_path / "data" / "threshold_data_500.csv").write_text(
+        "threshold,count\n500,1\n"
+    )
 
     config = _make_config(tmp_path)
     config_file = tmp_path / "config.json"
     config_file.write_text(json.dumps(config))
-    cache_dir = str(tmp_path / ".calibration_cache")
 
     # First run: cache miss -> calibration runs and populates the cache.
     ct.main(
@@ -263,13 +264,7 @@ def test_calibrate_threshold_cache_hit_skips_run(tmp_path, monkeypatch):
         cache=True,
     )
     assert _MockCalibrationContext.runs == 1
-    restored = (
-        tmp_path
-        / "out"
-        / "run2"
-        / "calibration"
-        / "calibration_results.pkl"
-    )
+    restored = tmp_path / "out" / "run2" / "calibration" / "calibration_results.pkl"
     assert restored.exists()
 
     # refresh_cache forces a re-run even on a hit.
@@ -318,7 +313,6 @@ def test_cache_binary_change_misses_unless_reuse_flag(tmp_path, monkeypatch):
     config = _make_config(tmp_path)
     config_file = tmp_path / "config.json"
     config_file.write_text(json.dumps(config))
-    cache_dir = str(tmp_path / "cache")
     exe = Path(config["exe_file"])
 
     # Populate the cache (records the binary hash in meta)
