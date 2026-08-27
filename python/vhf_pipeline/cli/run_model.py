@@ -2,9 +2,6 @@
 
 - ``vhf model run``                 run the ixa model once from an ixa config
 - ``vhf model calibrate``           run one calibration from a config file
-- ``vhf model calibrate-threshold`` run the death-threshold calibration stage,
-  optionally writing its posterior to the shared content-hash cache so a later
-  ``vhf workflow etr-sitrep`` reuses it instead of re-running the ABC
 """
 
 import argparse

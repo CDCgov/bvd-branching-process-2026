@@ -1,0 +1,90 @@
+{
+    "evdmodel.Parameters": {
+        "seed": 1234,
+        "track_susceptibles": false,
+        "initialization": {
+            "start_date": "2025-09-01",
+            "initial_cases": {
+                "SpilloverEvent": {
+                    "days_since_start": 110.0,
+                    "exposures": 1
+                }
+            }
+        },
+        "offspring_distribution": {"NegativeBinomial": {"mean": 2.88, "concentration": 0.45}},
+        "generation_interval_distribution": {"OffsetWeibull": {"shape": 2.0, "scale": 10.14, "offset": 0.5}},
+        "presymptomatic_transmission_probability": 0.0,
+        "hospitalization_probability": 0.0,
+        "hospitalization_delay_distribution": {"Exp": {"rate": 0.2}},
+        "testing_config": {
+            "deploy": true,
+            "sample_collection_delay": {"Gamma": {"rate": 1.0, "shape": 7.0}},
+            "testing_rate": "Unlimited"
+        },
+        "etu_transfer_delay": 0.0,
+        "clinical_transmission_probability": 1.0,
+        "quarantine_transmission_probability": 1.0,
+        "etu_transmission_probability": 1.0,
+        "active_detection_probability": 0.0,
+        "passive_detection_probability": 0.5,
+        "passive_detection_delay_distribution": {
+            "Exp": {
+                "rate": 0.5
+            }
+        },
+        "active_detection_delay_distribution": {"Fixed": {"delay": 0.0}},
+        "surveillance_campaign_delay": {
+            "deploy": true,
+            "trigger": {
+                "Date": {
+                    "date": "2026-05-24"
+                }
+            },
+            "distribution": {"Fixed": {"delay": 0.0}}
+        },
+        "recovery_delay_distribution": {"Fixed": {"delay": 0.1}},
+        "case_fatality_ratio": 0.33,
+        "mortality_delay_distribution": {"Fixed": {"delay": 0.1}},
+        "transmission_chain_report": {
+            "write": false
+        },
+        "rt_report": {
+            "write": true,
+            "filename": "rt_report_daily.csv"
+        },
+        "offspring_distribution_report": {
+            "write": false
+        },
+        "prevalence_report": {
+            "write": true,
+            "filename": "prevalence_report.csv",
+            "period": 1.0
+        },
+        "confirmation_incidence_report": {
+            "write": true,
+            "filename": "confirmation_incidence.csv",
+            "period": 1.0
+        },
+        "symptom_onset_report": {
+            "write": true,
+            "filename": "symptom_onset_report.csv",
+            "period": 1.0,
+            "trigger": {"Date": {
+                "date": "2026-07-06"
+            }}
+        },
+        "vaccination": {
+            "available": false
+        },
+        "shared_index_contact_probability": 0.35,
+        "offspring_intervention": {
+            "deploy": true,
+            "trigger": "SurveillanceCampaign",
+            "scalar": 1.0
+        },
+        "end_run_conditions": {
+            "max_time": 400.0,
+            "max_deaths": 10000
+        }
+    }
+}

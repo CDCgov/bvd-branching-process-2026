@@ -8,9 +8,7 @@ def init_processor(
     strategy: Literal["detection_band"],
 ) -> NaturalHistoryProcessor:
     if strategy == "detection_band":
-        return DetectionBandProcessor(
-            geq_flag=True, strategy="band", detection_band=(0.2, 0.6)
-        )
+        return DetectionBandProcessor(detection_band=(0.2, 0.6))
     else:
         raise ValueError(f"Unknown processor name: {strategy}")
 
