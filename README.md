@@ -22,6 +22,10 @@ uv run cargo build -r
 uv run vhf model run
 ```
 
+3. Run a small version of the main workflow using `mise run test-workflow`
+
+4. Run the main analysis workflow using `mise run detection`
+
 Each workflow run writes a `manifest.json` at the root of its output directory recording how the run was produced: the git commit/branch (and whether the tree was dirty), the `vhf_pipeline`/Python/key dependency versions, the resolved command and arguments, and the SHA-256 of the config and griddle it ran with — enough to trace a result back to the code, environment, and inputs that made it.
 
 ## Repository layout
