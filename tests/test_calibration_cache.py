@@ -1,4 +1,4 @@
-"""Unit + integration tests for the deaths-threshold posterior cache.
+"""Unit + integration tests for the detection-band posterior cache.
 
 CalibrationCache unit tests verify the cache API directly.
 Integration tests verify that CalibrationContext.run() correctly uses the cache
@@ -26,7 +26,7 @@ def _make_config(tmp_path: Path, **overrides) -> dict:
     exe.write_bytes(b"BINARY-v1")
 
     config = {
-        "strategy": "deaths_threshold",
+        "strategy": "detection_band",
         "priors_file": str(priors),
         "target_data_file": str(target),  # absolute -> no DATA_INPUT_DIR needed
         "default_ixa_file": str(default_ixa),
@@ -233,7 +233,7 @@ class _MockCalibrationContext(CalibrationContext):
             )
 
 
-def test_calibrate_threshold_cache_hit_skips_run(tmp_path, monkeypatch):
+def test_calibrate_cache_hit_skips_run(tmp_path, monkeypatch):
     """Test that cache hit in CalibrationContext.run() skips calibration run."""
     _MockCalibrationContext.runs = 0
     monkeypatch.setattr(ct, "CalibrationContext", _MockCalibrationContext)
@@ -277,7 +277,7 @@ def test_calibrate_threshold_cache_hit_skips_run(tmp_path, monkeypatch):
     assert _MockCalibrationContext.runs == 2
 
 
-def test_calibrate_threshold_no_cache_always_runs(tmp_path, monkeypatch):
+def test_calibrate_no_cache_always_runs(tmp_path, monkeypatch):
     """Test that without caching, calibration always runs."""
     _MockCalibrationContext.runs = 0
     monkeypatch.setattr(ct, "CalibrationContext", _MockCalibrationContext)

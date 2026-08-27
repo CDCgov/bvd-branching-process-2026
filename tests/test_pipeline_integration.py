@@ -8,7 +8,7 @@ the whole file stays in the tens-of-seconds range.
 Coverage:
 - ``test_model_run_writes_outputs``        the raw model runs and writes reports
 - ``test_calibration_produces_posterior``  the ABC calibration yields a posterior
-- ``test_pipeline_end_to_end_single_threshold``  calibrate_onset -> symptom_onset_figures -> rt_by_ratio_category -> summary_figures
+- ``test_pipeline_end_to_end``  calibrate_onset -> symptom_onset_figures -> rt_by_ratio_category
 """
 
 import json
@@ -82,7 +82,7 @@ def test_pipeline_end_to_end(tmp_path, base_config, monkeypatch):
     """calibrate_onset + symptom_onset_figures run end-to-end for a single scenario."""
     import datetime as dt
 
-    from vhf_pipeline.pipeline import symptom_onset_figures
+    from vhf_pipeline.pipeline import rt_by_ratio_category, symptom_onset_figures
 
     data_dir = tmp_path / "data"
     data_dir.mkdir()
@@ -128,6 +128,12 @@ def test_pipeline_end_to_end(tmp_path, base_config, monkeypatch):
         plot_incidence=False,
         save_detection_rate=True,
     )
+    rt_by_ratio_category.main(
+        output_subdir="",
+        calibration_subdir="detection_1.00",
+        projection_date=dt.date(2026, 9, 30),
+        rt_window_days=15,
+    )
 
     products = out_dir / "detection_1.00" / "products"
     assert (products / "prevalence_over_time.csv").exists()
@@ -137,3 +143,4 @@ def test_pipeline_end_to_end(tmp_path, base_config, monkeypatch):
     )
     figures_dir = products / "figures"
     assert (figures_dir / "weekly_rt.png").exists()
+    assert (products / "rt_by_ratio_category_window.csv").exists()

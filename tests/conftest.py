@@ -33,7 +33,7 @@ def model_binary() -> Path:
 
 @pytest.fixture
 def base_config(model_binary) -> dict:
-    """A fresh bvd_early_phase threshold config with absolute data-file paths."""
+    """A fresh test config with absolute data-file paths."""
     cfg = json.loads((EXPERIMENT_DIR / "test_config.json").read_text())
     cfg["default_ixa_file"] = str(EXPERIMENT_DIR / "default_ixa_config.json")
     cfg["priors_file"] = str(EXPERIMENT_DIR / "priors.json")
@@ -42,9 +42,9 @@ def base_config(model_binary) -> dict:
 
 @pytest.fixture
 def tiny_calibration_config(base_config, tmp_path, monkeypatch) -> dict:
-    """``base_config`` shrunk to a 2-particle ABC run against a low (2-death)
-    threshold nearly every short sim clears, with ``DATA_INPUT_DIR`` pointed at a
-    matching one-row CSV. For tests exercising the calibrate machinery, not fit."""
+    """``base_config`` shrunk to a 2-particle ABC run against a small dataset,
+    with ``DATA_INPUT_DIR`` pointed at the correct tmp inputs. For tests
+    exercising the calibrate machinery, not the realized fit."""
     data_dir = tmp_path / "data"
     data_dir.mkdir()
     (data_dir / "thresh.csv").write_text(
