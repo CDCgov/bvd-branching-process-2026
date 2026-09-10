@@ -11,6 +11,7 @@ from .context import (
     ProjectionContext,
 )
 from .data_handler import NaturalHistoryHandler
+from .data_processors import compute_epiweek_error
 from .runner import VHFModel
 
 __all__ = [
@@ -19,4 +20,5 @@ __all__ = [
     "BranchingProcessContext",
     "CalibrationContext",
     "ProjectionContext",
+    "compute_epiweek_error",
 ]

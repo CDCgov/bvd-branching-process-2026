@@ -2,7 +2,8 @@
     "priors_file": "experiments/detection/priors.json",
     "target_data_file": {
         "confirmation": "daily_confirmation_incidence.csv",
-        "deaths_threshold": "threshold_data_500.csv"
+        "deaths_upper_threshold": "threshold_data_500.csv",
+        "deaths_lower_threshold": "threshold_data_50.csv"
     },
     "strategy": "detection_band",
     "default_ixa_file": "experiments/detection/default_ixa_config.json",
@@ -16,7 +17,7 @@
         "keep_previous_population_data": true,
         "default_ixa_overrides": {
             "end_run_conditions": {
-                "max_time": 365.0,
+                "max_time": 450.0,
                 "max_cases": 30000
             }
         },
