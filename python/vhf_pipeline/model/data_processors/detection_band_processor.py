@@ -223,15 +223,15 @@ class DetectionBandProcessor(NaturalHistoryProcessor):
             "Multiple unique threshold_date values in target_df are not supported."
         )
         intervention_start_date = target_df.select("threshold_date").unique().item()
-
+        print("Reading prevalence")
         if outputs["prevalence_report"].height == 0:
             return MAX_FLOAT
-
+        print("Checking coverage")
         if not self._covers_target_window(
             outputs["confirmation_incidence_report"], target_df
         ):
             return MAX_FLOAT
-
+        print("Checking deaths range")
         if not self._deaths_within_threshold(
             outputs["prevalence_report"],
             intervention_start_date,
@@ -239,36 +239,36 @@ class DetectionBandProcessor(NaturalHistoryProcessor):
             upper_threshold=target_df["deaths_upper_threshold"][0],
         ):
             return MAX_FLOAT
-
+        print("Processing outputs")
         output_df = self.process_outputs(
             outputs,
             report_date=report_date,
             recording_start=intervention_start_date
             + dt.timedelta(days=TDELTA_STARTPOINT_POSTINTERVENTION),
         )
+        print(f"Output DataFrame:\n{output_df}")
         if output_df.height == 0:
             return MAX_FLOAT
-
+        print("Computing error cols")
         output_df = self._compute_epiweek_error(
             output_df, target_df, report_date, intervention_start_date
         )
 
+        print(output_df)
         if output_df.height == 0:
             return MAX_FLOAT
-
+        print("Checking cumulative error")
         if any(output_df["error_cumulative_confirmation"] < 0):
             return MAX_FLOAT  # Model underestimates cumulative confirmations, which is not allowed
 
-        if output_df.height == 0:
-            return MAX_FLOAT
-
+        print("Checking detection band")
         # Detection band distance function is calculated here once main filtering is done
         lower_detection, upper_detection = self.detection_band
         outside_bounds = output_df.filter(
-            # Find any epiweeks where observed detction is outside the bounded range
+            # Find any epiweeks where observed detection is outside the bounded range
             ~pl.col("observed_detection").is_between(lower_detection, upper_detection)
         )
-
+        print(outside_bounds)
         if outside_bounds.height > 0:
             return MAX_FLOAT
         else:
