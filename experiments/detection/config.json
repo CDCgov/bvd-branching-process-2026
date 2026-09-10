@@ -17,7 +17,7 @@
         "keep_previous_population_data": true,
         "default_ixa_overrides": {
             "end_run_conditions": {
-                "max_time": 400.0,
+                "max_time": 450.0,
                 "max_cases": 30000
             }
         },
