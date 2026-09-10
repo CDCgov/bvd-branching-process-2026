@@ -127,7 +127,8 @@ class DetectionBandProcessor(NaturalHistoryProcessor):
         self,
         prevalence_report: pl.DataFrame,
         intervention_start_date: dt.date,
-        threshold: int,
+        upper_threshold: int,
+        lower_threshold: int,
     ) -> bool:
         """Return True if cumulative deaths at intervention_start_date do not exceed threshold."""
         cumulative_deaths = (
@@ -144,7 +145,11 @@ class DetectionBandProcessor(NaturalHistoryProcessor):
         )
         if cumulative_deaths.height == 0:
             return False
-        return cumulative_deaths["cumulative_deaths"][0] <= threshold
+        return (
+            lower_threshold
+            <= cumulative_deaths["cumulative_deaths"][0]
+            <= upper_threshold
+        )
 
     def _compute_epiweek_error(
         self,
@@ -230,7 +235,8 @@ class DetectionBandProcessor(NaturalHistoryProcessor):
         if not self._deaths_within_threshold(
             outputs["prevalence_report"],
             intervention_start_date,
-            target_df["threshold"][0],
+            lower_threshold=target_df["deaths_lower_threshold"][0],
+            upper_threshold=target_df["deaths_upper_threshold"][0],
         ):
             return MAX_FLOAT
 
@@ -277,7 +283,23 @@ class DetectionBandProcessor(NaturalHistoryProcessor):
         confirmation_data = pl.read_csv(target_data_file["confirmation"]).filter(
             pl.col("case_status") == "Confirmed"
         )
-        deaths_threshold_data = pl.read_csv(target_data_file["deaths_threshold"])
+        deaths_upper_threshold_data = (
+            pl.read_csv(target_data_file["deaths_upper_threshold"])
+            .select("threshold", "threshold_date")
+            .rename({"threshold": "deaths_upper_threshold"})
+        )
+        deaths_lower_threshold_data = (
+            pl.read_csv(target_data_file["deaths_lower_threshold"])
+            .select("threshold", "threshold_date")
+            .rename({"threshold": "deaths_lower_threshold"})
+        )
+
+        deaths_threshold_data = deaths_upper_threshold_data.join(
+            deaths_lower_threshold_data, on="threshold_date", how="inner"
+        )
+        assert deaths_threshold_data.height == 1, (
+            "Expected exactly one row in deaths_threshold_data after joining upper and lower thresholds."
+        )
 
         report_date = pl.DataFrame(
             {"report_date": [confirmation_data.select("date").max().item()]}
@@ -285,7 +307,7 @@ class DetectionBandProcessor(NaturalHistoryProcessor):
 
         confirmation_data = (
             confirmation_data.join(
-                deaths_threshold_data.select("threshold", "threshold_date"),
+                deaths_threshold_data,
                 how="cross",
             )
             .with_columns(
@@ -306,7 +328,7 @@ class DetectionBandProcessor(NaturalHistoryProcessor):
         return (
             confirmation_data.join(
                 deaths_threshold_data.select(
-                    "threshold", "threshold_date"
+                    "deaths_lower_threshold", "deaths_upper_threshold", "threshold_date"
                 ).with_columns(pl.col("threshold_date").cast(pl.Date)),
                 how="cross",
             )

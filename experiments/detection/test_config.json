@@ -2,7 +2,8 @@
     "priors_file": "experiments/detection/priors.json",
     "target_data_file": {
         "confirmation": "daily_confirmation_incidence.csv",
-        "deaths_threshold": "threshold_data_500.csv"
+        "deaths_upper_threshold": "threshold_data_500.csv",
+        "deaths_lower_threshold": "threshold_data_50.csv"
     },
     "strategy": "detection_band",
     "default_ixa_file": "experiments/detection/default_ixa_config.json",
