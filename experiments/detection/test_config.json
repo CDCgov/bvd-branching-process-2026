@@ -10,7 +10,7 @@
     "exe_file": "target/release/vhf_model",
     "force_overwrite": true,
     "calibration": {
-        "generation_particle_count": 50,
+        "generation_particle_count": 100,
         "tolerance_values": [5.0],
         "entropy": 188178541513900933870725919196083449244,
         "clean": true,

@@ -927,13 +927,13 @@ def main(
     figures_dir.mkdir(parents=True, exist_ok=True)
 
     data = load_scenario_data(output_dir, calibration_subdir, products_dir)
-    # Load simulations
-    all_sims_df = pl.read_csv(run_dir / "projection" / "all_simulations.csv")
-    all_sims_df = all_sims_df.with_columns(pl.col("epiweek_startdate").cast(pl.Date))
+    confirmation_report_df = pl.read_csv(
+        run_dir / "projection" / "all_confirmation_incidence_reports.csv"
+    ).with_columns(pl.col("date").cast(pl.Date))
 
     save_particle_detection_rate(
         target_data=data["target_data"],
-        simulation_data=all_sims_df,
+        confirmation_report_data=confirmation_report_df,
         products_dir=products_dir,
     )
 

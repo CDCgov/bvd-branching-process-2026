@@ -12,6 +12,7 @@ import polars as pl
 
 from vhf_pipeline import ProjectionContext
 from vhf_pipeline.model import compute_epiweek_error
+from vhf_pipeline.model.data_processors import DetectionBandProcessor
 from vhf_pipeline.utils import get_cumulative_symptomatic_cases
 
 
@@ -40,13 +41,60 @@ def get_cumulative_cases(
 
 def save_particle_detection_rate(
     target_data: pl.DataFrame,
-    simulation_data: pl.DataFrame,
+    confirmation_report_data: pl.DataFrame,
     products_dir: Path,
 ) -> None:
     """
-    Save per-particle detection rates for the earliest and latest target checkpoints using `compute_epiweek_error`.
+    Save per-particle detection rates for the earliest and latest target checkpoints.
+
+    Recomputes per-particle epiweek cumulative confirmations from raw
+    confirmation reports using the same report_date/recording_start window
+    as the error function.
     """
-    max_report_date = target_data.select(pl.max("report_date")).item()
+    required_cols = {"particle_id", "date", "case_status", "count"}
+    missing = required_cols - set(confirmation_report_data.columns)
+    if missing:
+        raise ValueError(
+            f"confirmation_report_data is missing required columns: {sorted(missing)}"
+        )
+
+    max_report_date = target_data.select(pl.max("report_date").cast(pl.Date)).item()
+    assert target_data.select("threshold_date").n_unique() == 1, (
+        "Multiple threshold_date values in target_data are not supported."
+    )
+    intervention_start_date = target_data.select("threshold_date").unique().item()
+    recording_start = intervention_start_date + dt.timedelta(days=8)
+
+    processor = DetectionBandProcessor(detection_band=(0.2, 0.6))
+    epiweek_rows: list[pl.DataFrame] = []
+    for particle_df in confirmation_report_data.partition_by(
+        "particle_id", maintain_order=True
+    ):
+        particle_id = particle_df.select(pl.first("particle_id")).item()
+        processed = processor.process_outputs(
+            outputs={"confirmation_incidence_report": particle_df},
+            report_date=max_report_date,
+            recording_start=recording_start,
+        )
+        if processed.height == 0:
+            continue
+        epiweek_rows.append(
+            processed.with_columns(pl.lit(particle_id).alias("particle_id"))
+        )
+
+    simulation_data = (
+        pl.concat(epiweek_rows, how="vertical_relaxed")
+        if epiweek_rows
+        else pl.DataFrame(
+            schema={
+                "confirmation_incidence": pl.Int64,
+                "num_days_in_epiweek": pl.Int64,
+                "epiweek_startdate": pl.Date,
+                "cumulative_confirmation_incidence": pl.Int64,
+                "particle_id": pl.Int64,
+            }
+        )
+    )
 
     comparison_df = (
         simulation_data.pipe(
