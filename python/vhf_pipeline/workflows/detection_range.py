@@ -31,7 +31,7 @@ DEFAULT_CONFIG = "experiments/detection/config.json"
 DEFAULT_SCENARIOS = "experiments/detection/all_confirmed_scenario.json"
 THRESHOLD_UPPER_BOUND = 500
 PROJECTION_DATE = dt.date(2026, 9, 30)  # The date to project to for the figures.
-MAX_DATA_DATE = dt.date(2026, 8, 10)  # The last date of the data used for calibration.
+MAX_DATA_DATE = dt.date(2026, 9, 8)  # The last date of the data used for calibration.
 INTERVENTION_START_DATE = dt.date(2026, 5, 24)  # The date of the interventions
 OUTBREAK_ISO3C_EXTENT = ["COD"]
 
