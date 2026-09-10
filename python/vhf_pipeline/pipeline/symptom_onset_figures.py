@@ -18,7 +18,6 @@ from vhf_pipeline import paths
 from vhf_pipeline.pipeline.shared_plotting_data import (
     get_cumulative_cases,
     load_scenario_data,
-    save_particle_detection_rate,
 )
 from vhf_pipeline.utils import assign_epiweek
 
@@ -710,12 +709,6 @@ def main(
     # Generate figures
     print("Generating figures...")
     os.makedirs(figures_dir / "parameters", exist_ok=True)
-    if save_detection_rate:
-        save_particle_detection_rate(
-            target_data,
-            projected_report_data,
-            products_dir,
-        )
 
     # Posterior trajectories fit analysis
     _plot_posterior_diversity(calibration_results, figures_dir)
@@ -768,3 +761,13 @@ def main(
     _save_parameter_figures(fig, axes, calibration_results, figures_dir)
 
     print(f"Figures saved to {figures_dir}")
+
+
+if __name__ == "__main__":
+    main(
+        output_subdir="experiments/test/detection",
+        projection_date=dt.date(2026, 9, 30),
+        calibration_subdir="detection_1.00",
+        plot_incidence=False,
+        save_detection_rate=True,
+    )

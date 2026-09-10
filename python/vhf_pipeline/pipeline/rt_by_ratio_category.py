@@ -51,7 +51,7 @@ def _ratio_category(column_name: str) -> pl.Expr:
         .then(pl.lit("40-50%"))
         .when((pl.col(column_name) >= 0.5) & (pl.col(column_name) <= 0.6))
         .then(pl.lit("50-60%"))
-        .otherwise(None)
+        .otherwise(pl.lit("OUTSIDE_BOUNDS"))
     )
 
 
@@ -706,7 +706,7 @@ def _build_summary_table(
             "particle_id",
             "later_ratio_category",
             "particle_rt",
-            "observed_detection_rate_target_early",
+            "observed_detection_early",
         )
         .join(basic_rt_df, on="particle_id", how="left")
         .join(
@@ -718,7 +718,7 @@ def _build_summary_table(
     )
 
     transform_exprs = [
-        (pl.col("observed_detection_rate_target_early") * 100).alias("detection_pct")
+        (pl.col("observed_detection_early") * 100).alias("detection_pct")
     ]
     if has_spillover:
         transform_exprs.append(_spillover_ordinals_expr(base_ord))
@@ -928,19 +928,14 @@ def main(
 
     data = load_scenario_data(output_dir, calibration_subdir, products_dir)
     # Load simulations
-    _all_sims_df = pl.read_csv(run_dir / "projection" / "all_simulations.csv")
-    if "epiweek_startdate" in _all_sims_df.columns:
-        projected_report_data = _all_sims_df.with_columns(
-            pl.col("epiweek_startdate").cast(pl.Date)
-        ).rename({"epiweek_startdate": "date"})
-    else:
-        projected_report_data = _all_sims_df.with_columns(pl.col("date").cast(pl.Date))
-    if not (products_dir / "particle_confirmation_errors.csv").exists():
-        save_particle_detection_rate(
-            target_data=data["target_data"],
-            projected_report_data=projected_report_data,
-            products_dir=products_dir,
-        )
+    all_sims_df = pl.read_csv(run_dir / "projection" / "all_simulations.csv")
+    all_sims_df = all_sims_df.with_columns(pl.col("epiweek_startdate").cast(pl.Date))
+
+    save_particle_detection_rate(
+        target_data=data["target_data"],
+        simulation_data=all_sims_df,
+        products_dir=products_dir,
+    )
 
     ratio_df = pl.read_csv(
         products_dir / "particle_observed_detection.csv", try_parse_dates=True
@@ -953,12 +948,8 @@ def main(
     joined = (
         ratio_df.join(particle_rt, on="particle_id", how="inner")
         .with_columns(
-            _ratio_category("observed_detection_rate_target_early").alias(
-                "earlier_ratio_category"
-            ),
-            _ratio_category("observed_detection_rate_target_late").alias(
-                "later_ratio_category"
-            ),
+            _ratio_category("observed_detection_early").alias("earlier_ratio_category"),
+            _ratio_category("observed_detection_late").alias("later_ratio_category"),
         )
         .drop_nulls(["earlier_ratio_category", "later_ratio_category"])
         .sort("particle_id")
