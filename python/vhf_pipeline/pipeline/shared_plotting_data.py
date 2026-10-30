@@ -11,6 +11,8 @@ from pathlib import Path
 import polars as pl
 
 from vhf_pipeline import ProjectionContext
+from vhf_pipeline.model import compute_epiweek_error
+from vhf_pipeline.model.data_processors import DetectionBandProcessor
 from vhf_pipeline.utils import get_cumulative_symptomatic_cases
 
 
@@ -39,78 +41,90 @@ def get_cumulative_cases(
 
 def save_particle_detection_rate(
     target_data: pl.DataFrame,
-    projected_report_data: pl.DataFrame,
+    confirmation_report_data: pl.DataFrame,
     products_dir: Path,
 ) -> None:
-    """Save per-particle detection rates for the earliest and latest target checkpoints.
-
-    Writes ``particle_observed_detection.csv`` to *products_dir*.
     """
-    max_report_date = target_data.select(pl.max("report_date")).item()
-    min_date = target_data.select(pl.min("date")).item()
+    Save per-particle detection rates for the earliest and latest target checkpoints.
 
-    if target_data.height != 2:
-        target_data = target_data.filter(
-            pl.col("date").is_in([min_date, max_report_date])
-        )
-        print(
-            "Warning: Target data does not contain exactly two checkpoints; "
-            "filtering to min and max dates for error calculation."
+    Recomputes per-particle epiweek cumulative confirmations from raw
+    confirmation reports using the same report_date/recording_start window
+    as the error function.
+    """
+    required_cols = {"particle_id", "date", "case_status", "count"}
+    missing = required_cols - set(confirmation_report_data.columns)
+    if missing:
+        raise ValueError(
+            f"confirmation_report_data is missing required columns: {sorted(missing)}"
         )
 
-    assert target_data.height == 2, (
-        "Expected exactly two target data points for error calculation."
+    max_report_date = target_data.select(pl.max("report_date").cast(pl.Date)).item()
+    assert target_data.select("threshold_date").n_unique() == 1, (
+        "Multiple threshold_date values in target_data are not supported."
+    )
+    intervention_start_date = target_data.select("threshold_date").unique().item()
+    recording_start = intervention_start_date + dt.timedelta(days=8)
+
+    processor = DetectionBandProcessor(detection_band=(0.2, 0.6))
+    epiweek_rows: list[pl.DataFrame] = []
+    for particle_df in confirmation_report_data.partition_by(
+        "particle_id", maintain_order=True
+    ):
+        particle_id = particle_df.select(pl.first("particle_id")).item()
+        processed = processor.process_outputs(
+            outputs={"confirmation_incidence_report": particle_df},
+            report_date=max_report_date,
+            recording_start=recording_start,
+        )
+        if processed.height == 0:
+            continue
+        epiweek_rows.append(
+            processed.with_columns(pl.lit(particle_id).alias("particle_id"))
+        )
+
+    simulation_data = (
+        pl.concat(epiweek_rows, how="vertical_relaxed")
+        if epiweek_rows
+        else pl.DataFrame(
+            schema={
+                "confirmation_incidence": pl.Int64,
+                "num_days_in_epiweek": pl.Int64,
+                "epiweek_startdate": pl.Date,
+                "cumulative_confirmation_incidence": pl.Int64,
+                "particle_id": pl.Int64,
+            }
+        )
     )
 
-    if "cumulative_confirmation_incidence" in projected_report_data.columns:
-        simulation_points = projected_report_data
-    else:
-        simulation_points = projected_report_data.with_columns(
-            pl.col("confirmation_incidence")
-            .cum_sum()
-            .over("particle_id", order_by="date")
-            .alias("cumulative_confirmation_incidence")
-        )
-
-    plot_df = simulation_points.filter(
-        (pl.col("date") <= max_report_date) & (pl.col("date") >= min_date)
-    ).with_columns(pl.col("date").cast(pl.Date))
-
     comparison_df = (
-        plot_df.join(
-            target_data.select("date", "cumulative_confirmation_incidence"),
-            on="date",
-            how="inner",
-            suffix="_target",
+        simulation_data.pipe(
+            compute_epiweek_error,
+            target_df=target_data,
+            report_date=max_report_date,
         )
-        .filter(pl.col("date").is_in(target_data["date"]))
         .with_columns(
-            (
-                pl.col("cumulative_confirmation_incidence_target")
-                / pl.col("cumulative_confirmation_incidence")
-            ).alias("observed_detection_rate_target"),
-            (
-                pl.when(pl.col("date") == target_data["date"].min())
-                .then(pl.lit("early"))
-                .otherwise(pl.lit("late"))
-            ).alias("target_timing"),
+            pl.when(pl.col("epiweek_startdate") == pl.min("epiweek_startdate"))
+            .then(pl.lit("early"))
+            .otherwise(pl.lit("late"))
+            .alias("target_timing")
         )
         .select(
             "particle_id",
-            "target_timing",
-            "observed_detection_rate_target",
             "cumulative_confirmation_incidence",
+            "observed_detection",
+            "target_timing",
         )
         .pivot(
             "target_timing",
             index="particle_id",
             values=[
-                "observed_detection_rate_target",
+                "observed_detection",
                 "cumulative_confirmation_incidence",
             ],
         )
         .sort("particle_id")
     )
+
     comparison_df.write_csv(products_dir / "particle_observed_detection.csv")
 
 

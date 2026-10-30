@@ -25,6 +25,38 @@ def collect_epiweek_startdate(df: pl.DataFrame) -> pl.DataFrame:
     )
 
 
+def compute_epiweek_error(
+    output_df: pl.DataFrame,
+    target_df: pl.DataFrame,
+    report_date: dt.date,
+) -> pl.DataFrame:
+    """Join model output with target and compute observed detection.
+    The detection percentage is calculated assuming the model is the ``true'' case count and the target data is the observation
+    of that process. This is done for each week in the data (typically two).
+    """
+    return (
+        output_df.join(
+            target_df.select(
+                ["epiweek_startdate", "cumulative_confirmation_incidence"]
+            ),
+            on="epiweek_startdate",
+            how="right",
+            coalesce=True,
+            suffix="_target",
+        )
+        .with_columns(
+            pl.col("cumulative_confirmation_incidence").fill_null(0),
+            pl.lit(report_date).cast(pl.Date).alias("report_date"),
+        )
+        .with_columns(
+            (
+                pl.col("cumulative_confirmation_incidence_target")
+                / pl.col("cumulative_confirmation_incidence")
+            ).alias("observed_detection")
+        )
+    )
+
+
 class DetectionBandProcessor(NaturalHistoryProcessor):
     """
     Align the known cumulative confirmation dates of a report to the date that the report was generated
@@ -127,7 +159,8 @@ class DetectionBandProcessor(NaturalHistoryProcessor):
         self,
         prevalence_report: pl.DataFrame,
         intervention_start_date: dt.date,
-        threshold: int,
+        upper_threshold: int,
+        lower_threshold: int,
     ) -> bool:
         """Return True if cumulative deaths at intervention_start_date do not exceed threshold."""
         cumulative_deaths = (
@@ -144,52 +177,10 @@ class DetectionBandProcessor(NaturalHistoryProcessor):
         )
         if cumulative_deaths.height == 0:
             return False
-        return cumulative_deaths["cumulative_deaths"][0] <= threshold
-
-    def _compute_epiweek_error(
-        self,
-        output_df: pl.DataFrame,
-        target_df: pl.DataFrame,
-        report_date: dt.date,
-        intervention_start_date: dt.date,
-    ) -> pl.DataFrame:
-        """Join model output with target and compute relative cumulative error per epiweek.
-
-        Keeps only the first and last full epiweeks that are at least one week
-        after intervention_start_date (to avoid surveillance ramp-up mismatch).
-        """
         return (
-            output_df.join(
-                target_df.select(
-                    ["epiweek_startdate", "cumulative_confirmation_incidence"]
-                ),
-                on="epiweek_startdate",
-                how="right",
-                coalesce=True,
-                suffix="_target",
-            )
-            .with_columns(
-                pl.col("cumulative_confirmation_incidence").fill_null(0),
-            )
-            .with_columns(
-                (
-                    pl.col("cumulative_confirmation_incidence")
-                    - pl.col("cumulative_confirmation_incidence_target")
-                ).alias("error_cumulative_confirmation"),
-                pl.lit(report_date).cast(pl.Date).alias("report_date"),
-            )
-            .with_columns(
-                (
-                    pl.col("error_cumulative_confirmation").abs()
-                    / pl.col("cumulative_confirmation_incidence_target")
-                ).alias("relative_error_cumulative_confirmation"),
-            )
-            .with_columns(
-                (
-                    pl.col("cumulative_confirmation_incidence_target")
-                    / pl.col("cumulative_confirmation_incidence")
-                ).alias("observed_detection")
-            )
+            lower_threshold
+            <= cumulative_deaths["cumulative_deaths"][0]
+            <= upper_threshold
         )
 
     def _covers_target_window(
@@ -211,8 +202,19 @@ class DetectionBandProcessor(NaturalHistoryProcessor):
     def estimate_error(
         self, outputs: dict[str, pl.DataFrame], target_df: pl.DataFrame
     ) -> float:
-        """Estimate the error between the model outputs and the target data.
-        Returns relative difference between weekly cumulative confirmation."""
+        """Return an effectively boolean value of whether simulations results are appropriately in the detection
+        band for each epiweek assessed. Only simulations that have all epiweeks in target_df inside the owned
+        detection band return a value other than MAX_FLOAT.
+
+        If the maximum allowable number of cases generated in a model, or the maximum allowable number
+        of deaths generated, are too low, then this test will reject simulations that otherwise might be
+        appropriate. Foir this reason, assert that the maximum cases is well above the observed maximum cases
+        divided by the lower detection threshold.
+        For example, if the target_df hasa final epiweek with 10K cumulative cases, and a detection band of [0.2, 0.6]
+        is used, then the maximum cases allowable in a model should be no less than 50K and there should be no deaths
+        trigger to end the simulation.
+        This is analogous to setting the appropriate end time point of the simulation configuration.
+        """
         report_date = target_df.select("report_date").max().cast(pl.Date).item()
         assert target_df.select("threshold_date").n_unique() == 1, (
             "Multiple unique threshold_date values in target_df are not supported."
@@ -230,7 +232,8 @@ class DetectionBandProcessor(NaturalHistoryProcessor):
         if not self._deaths_within_threshold(
             outputs["prevalence_report"],
             intervention_start_date,
-            target_df["threshold"][0],
+            lower_threshold=target_df["deaths_lower_threshold"][0],
+            upper_threshold=target_df["deaths_upper_threshold"][0],
         ):
             return MAX_FLOAT
 
@@ -240,18 +243,15 @@ class DetectionBandProcessor(NaturalHistoryProcessor):
             recording_start=intervention_start_date
             + dt.timedelta(days=TDELTA_STARTPOINT_POSTINTERVENTION),
         )
+
         if output_df.height == 0:
             return MAX_FLOAT
 
-        output_df = self._compute_epiweek_error(
-            output_df, target_df, report_date, intervention_start_date
+        output_df = compute_epiweek_error(
+            output_df,
+            target_df,
+            report_date,
         )
-
-        if output_df.height == 0:
-            return MAX_FLOAT
-
-        if any(output_df["error_cumulative_confirmation"] < 0):
-            return MAX_FLOAT  # Model underestimates cumulative confirmations, which is not allowed
 
         if output_df.height == 0:
             return MAX_FLOAT
@@ -259,7 +259,7 @@ class DetectionBandProcessor(NaturalHistoryProcessor):
         # Detection band distance function is calculated here once main filtering is done
         lower_detection, upper_detection = self.detection_band
         outside_bounds = output_df.filter(
-            # Find any epiweeks where observed detction is outside the bounded range
+            # Find any epiweeks where observed detection is outside the bounded range
             ~pl.col("observed_detection").is_between(lower_detection, upper_detection)
         )
 
@@ -271,13 +271,39 @@ class DetectionBandProcessor(NaturalHistoryProcessor):
 
     def get_target_data(self, target_data_file: dict[str, Path]) -> pl.DataFrame:
         """
-        Collect cumulative confirmations inside the target data since threshold date
-        Return the cumulative confirmations for the first epiweek that is at least 3 weeks after the threshold date and the final epiweek
+        Collect cumulative confirmations inside the target data since threshold date when interventions began
+
+        Returns a data frame with two rows, containing the cumualtive cases over a time period immediately following intervention initiation.
+        The first time period is defined by ``TDELTA_STARTPOINT_POSTINTERVENTION`` and ``TDELTA_FIRST_ENDPOINT_POSTINTERVENTION``,
+        which are time delays in days following the threshold date to select epiweek start dates.
+        The second time period is the total of the time series, through the last complete week of data.
+        For example, if a threshold date of May 24th is used:
+            ``TDELTA_STARTPOINT_POSTINTERVENTION=8`` refers to June 1
+            ``TDELTA_ENDPOINT_POSTINTERVENTION=21`` refers to June 15
+        such that the confirmed cases are summed from June 1 (inclusive) through June 21 (inclusive),
+        and are then summed from June 1 (inclusive) until the end of the last complete epiweek of the data.
         """
+
         confirmation_data = pl.read_csv(target_data_file["confirmation"]).filter(
             pl.col("case_status") == "Confirmed"
         )
-        deaths_threshold_data = pl.read_csv(target_data_file["deaths_threshold"])
+        deaths_upper_threshold_data = (
+            pl.read_csv(target_data_file["deaths_upper_threshold"])
+            .select("threshold", "threshold_date")
+            .rename({"threshold": "deaths_upper_threshold"})
+        )
+        deaths_lower_threshold_data = (
+            pl.read_csv(target_data_file["deaths_lower_threshold"])
+            .select("threshold", "threshold_date")
+            .rename({"threshold": "deaths_lower_threshold"})
+        )
+
+        deaths_threshold_data = deaths_upper_threshold_data.join(
+            deaths_lower_threshold_data, on="threshold_date", how="inner"
+        )
+        assert deaths_threshold_data.height == 1, (
+            "Expected exactly one row in deaths_threshold_data after joining upper and lower thresholds."
+        )
 
         report_date = pl.DataFrame(
             {"report_date": [confirmation_data.select("date").max().item()]}
@@ -285,7 +311,7 @@ class DetectionBandProcessor(NaturalHistoryProcessor):
 
         confirmation_data = (
             confirmation_data.join(
-                deaths_threshold_data.select("threshold", "threshold_date"),
+                deaths_threshold_data,
                 how="cross",
             )
             .with_columns(
@@ -306,7 +332,7 @@ class DetectionBandProcessor(NaturalHistoryProcessor):
         return (
             confirmation_data.join(
                 deaths_threshold_data.select(
-                    "threshold", "threshold_date"
+                    "deaths_lower_threshold", "deaths_upper_threshold", "threshold_date"
                 ).with_columns(pl.col("threshold_date").cast(pl.Date)),
                 how="cross",
             )
@@ -318,7 +344,7 @@ class DetectionBandProcessor(NaturalHistoryProcessor):
             )
             .filter(
                 (
-                    # Filter to epiweeks that are at least 3 weeks after the threshold date
+                    # Filter to epiweeks that are at least a delay after the intervention threshold date
                     pl.col("epiweek_startdate")
                     >= pl.col("threshold_date")
                     + dt.timedelta(days=TDELTA_FIRST_ENDPOINT_POSTINTERVENTION)

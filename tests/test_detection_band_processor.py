@@ -20,7 +20,7 @@ def max_float():
 def band_processor():
     """Create a processor with band strategy"""
     return DetectionBandProcessor(
-        detection_band=(0.5, 1.5),
+        detection_band=(0.2, 0.6),
     )
 
 
@@ -73,6 +73,56 @@ def sample_target_data():
             "num_days_in_epiweek": [7, 7],
         }
     )
+
+
+# Fixtures for a completely passing error estimation ------
+@pytest.fixture
+def band_test_confirmation_report():
+    """Create confirmation report for band processor tests"""
+    return pl.DataFrame(
+        {
+            "date": pl.date_range(
+                date(2024, 12, 31), date(2025, 1, 20), eager=True
+            ).to_list(),
+            "case_status": ["Confirmed"] * 21,
+            "count": [2] * 21,
+        }
+    )
+
+
+@pytest.fixture
+def band_test_prevalence_report():
+    """Create prevalence report for band processor tests"""
+    return pl.DataFrame(
+        {
+            "date": [date(2024, 12, 31)] * 2,
+            "alive": [True, False],
+            "count": [10, 12],
+        }
+    )
+
+
+@pytest.fixture
+def band_test_target_dict():
+    """Create target dict for band processor tests"""
+    return {
+        "epiweek_startdate": [date(2025, 1, 6), date(2025, 1, 13)],
+        "cumulative_confirmation_incidence": [4, 7],
+        "report_date": [date(2025, 1, 20), date(2025, 1, 20)],
+        "threshold_date": [date(2024, 12, 31), date(2024, 12, 31)],
+        "deaths_upper_threshold": [50, 50],
+        "deaths_lower_threshold": [10, 10],
+        "num_days_in_epiweek": [7, 7],
+    }
+
+
+@pytest.fixture
+def band_test_outputs(band_test_confirmation_report, band_test_prevalence_report):
+    """Create outputs dict for band processor tests"""
+    return {
+        "confirmation_incidence_report": band_test_confirmation_report,
+        "prevalence_report": band_test_prevalence_report,
+    }
 
 
 def test_init_band_strategy():
@@ -217,11 +267,66 @@ def test_estimate_error_geq_rejects_underestimate(
     assert error == max_float
 
 
+def test_estimate_error_within_detection_band(
+    band_processor, band_test_outputs, band_test_target_dict
+):
+    """Test estimate_error accepts data within the detection band"""
+    target_df = pl.DataFrame(band_test_target_dict)
+    error = band_processor.estimate_error(band_test_outputs, target_df)
+    # Should return a numeric value (not MAX_FLOAT) since data is within the band
+    assert error == 0.0
+
+
+def test_estimate_error_incidence_too_low(
+    band_processor, band_test_outputs, band_test_target_dict, max_float
+):
+    """Test estimate_error rejects incidence that is too low"""
+    failed_target = band_test_target_dict.copy()
+    failed_target["cumulative_confirmation_incidence"] = [1, 7]
+    failed_target_df = pl.DataFrame(failed_target)
+    error = band_processor.estimate_error(band_test_outputs, failed_target_df)
+    assert error == max_float
+
+
+def test_estimate_error_incidence_too_high(
+    band_processor, band_test_outputs, band_test_target_dict, max_float
+):
+    """Test estimate_error rejects incidence that is too high"""
+    failed_target = band_test_target_dict.copy()
+    failed_target["cumulative_confirmation_incidence"] = [5, 7]
+    failed_target_df = pl.DataFrame(failed_target)
+    error = band_processor.estimate_error(band_test_outputs, failed_target_df)
+    assert error == max_float
+
+
+def test_estimate_error_deaths_lower_threshold_too_high(
+    band_processor, band_test_outputs, band_test_target_dict, max_float
+):
+    """Test estimate_error rejects deaths_lower_threshold that is too high"""
+    failed_target = band_test_target_dict.copy()
+    failed_target["deaths_lower_threshold"] = [15, 15]
+    failed_target_df = pl.DataFrame(failed_target)
+    error = band_processor.estimate_error(band_test_outputs, failed_target_df)
+    assert error == max_float
+
+
+def test_estimate_error_deaths_upper_threshold_too_low(
+    band_processor, band_test_outputs, band_test_target_dict, max_float
+):
+    """Test estimate_error rejects deaths_upper_threshold that is too low"""
+    failed_target = band_test_target_dict.copy()
+    failed_target["deaths_upper_threshold"] = [5, 5]
+    failed_target_df = pl.DataFrame(failed_target)
+    error = band_processor.estimate_error(band_test_outputs, failed_target_df)
+    assert error == max_float
+
+
 def test_get_target_data_basic(band_processor, tmp_path):
     """Test get_target_data reads and processes target data"""
     # Create temporary CSV files
     confirmation_file = tmp_path / "confirmation.csv"
-    deaths_file = tmp_path / "deaths_threshold.csv"
+    deaths_upper_file = tmp_path / "deaths_upper.csv"
+    deaths_lower_file = tmp_path / "deaths_lower.csv"
 
     # Data spanning 4+ weeks after threshold + 7 days to get full epiweeks
     confirmation_file.write_text(
@@ -239,11 +344,13 @@ def test_get_target_data_basic(band_processor, tmp_path):
         "2025-01-30,Confirmed,1\n"
     )
 
-    deaths_file.write_text("threshold,threshold_date\n50,2024-12-31\n")
+    deaths_upper_file.write_text("threshold,threshold_date\n50,2024-12-31\n")
+    deaths_lower_file.write_text("threshold,threshold_date\n10,2024-12-31\n")
 
     target_data_file = {
         "confirmation": confirmation_file,
-        "deaths_threshold": deaths_file,
+        "deaths_upper_threshold": deaths_upper_file,
+        "deaths_lower_threshold": deaths_lower_file,
     }
 
     result = band_processor.get_target_data(target_data_file)
@@ -256,7 +363,8 @@ def test_get_target_data_basic(band_processor, tmp_path):
 def test_get_target_data_filters_before_threshold(band_processor, tmp_path):
     """Test get_target_data filters data before threshold_date + 7 days"""
     confirmation_file = tmp_path / "confirmation.csv"
-    deaths_file = tmp_path / "deaths_threshold.csv"
+    deaths_upper_file = tmp_path / "deaths_upper.csv"
+    deaths_lower_file = tmp_path / "deaths_lower.csv"
 
     confirmation_file.write_text(
         "date,case_status,count\n"
@@ -267,11 +375,13 @@ def test_get_target_data_filters_before_threshold(band_processor, tmp_path):
         "2025-01-22,Confirmed,2\n"
     )
 
-    deaths_file.write_text("threshold,threshold_date\n50,2024-12-31\n")
+    deaths_upper_file.write_text("threshold,threshold_date\n50,2024-12-31\n")
+    deaths_lower_file.write_text("threshold,threshold_date\n10,2024-12-31\n")
 
     target_data_file = {
         "confirmation": confirmation_file,
-        "deaths_threshold": deaths_file,
+        "deaths_upper_threshold": deaths_upper_file,
+        "deaths_lower_threshold": deaths_lower_file,
     }
 
     result = band_processor.get_target_data(target_data_file)
@@ -284,7 +394,8 @@ def test_get_target_data_filters_before_threshold(band_processor, tmp_path):
 def test_get_target_data_filters_partial_epiweeks(band_processor, tmp_path):
     """Test get_target_data filters out partial epiweeks"""
     confirmation_file = tmp_path / "confirmation.csv"
-    deaths_file = tmp_path / "deaths_threshold.csv"
+    deaths_upper_file = tmp_path / "deaths_upper.csv"
+    deaths_lower_file = tmp_path / "deaths_lower.csv"
 
     confirmation_file.write_text(
         "date,case_status,count\n"
@@ -297,11 +408,13 @@ def test_get_target_data_filters_partial_epiweeks(band_processor, tmp_path):
         "2025-01-22,Confirmed,1\n"
     )
 
-    deaths_file.write_text("threshold,threshold_date\n50,2024-12-31\n")
+    deaths_upper_file.write_text("threshold,threshold_date\n50,2024-12-31\n")
+    deaths_lower_file.write_text("threshold,threshold_date\n10,2024-12-31\n")
 
     target_data_file = {
         "confirmation": confirmation_file,
-        "deaths_threshold": deaths_file,
+        "deaths_upper_threshold": deaths_upper_file,
+        "deaths_lower_threshold": deaths_lower_file,
     }
 
     result = band_processor.get_target_data(target_data_file)
@@ -313,7 +426,8 @@ def test_get_target_data_filters_partial_epiweeks(band_processor, tmp_path):
 def test_get_target_data_returns_endpoints(band_processor, tmp_path):
     """Test get_target_data returns only first and last epiweeks"""
     confirmation_file = tmp_path / "confirmation.csv"
-    deaths_file = tmp_path / "deaths_threshold.csv"
+    deaths_upper_file = tmp_path / "deaths_upper.csv"
+    deaths_lower_file = tmp_path / "deaths_lower.csv"
 
     # Create data spanning multiple epiweeks
     dates_lines = ["date,case_status,count"]
@@ -322,11 +436,13 @@ def test_get_target_data_returns_endpoints(band_processor, tmp_path):
 
     confirmation_file.write_text("\n".join(dates_lines))
 
-    deaths_file.write_text("threshold,threshold_date\n50,2024-12-31\n")
+    deaths_upper_file.write_text("threshold,threshold_date\n50,2024-12-31\n")
+    deaths_lower_file.write_text("threshold,threshold_date\n10,2024-12-31\n")
 
     target_data_file = {
         "confirmation": confirmation_file,
-        "deaths_threshold": deaths_file,
+        "deaths_upper_threshold": deaths_upper_file,
+        "deaths_lower_threshold": deaths_lower_file,
     }
 
     result = band_processor.get_target_data(target_data_file)
