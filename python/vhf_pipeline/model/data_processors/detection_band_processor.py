@@ -30,10 +30,9 @@ def compute_epiweek_error(
     target_df: pl.DataFrame,
     report_date: dt.date,
 ) -> pl.DataFrame:
-    """Join model output with target and compute relative cumulative error per epiweek.
-
-    Keeps only the first and last full epiweeks that are at least one week
-    after intervention_start_date (to avoid surveillance ramp-up mismatch).
+    """Join model output with target and compute observed detection.
+    The detection percentage is calculated assuming the model is the ``true'' case count and the target data is the observation
+    of that process. This is done for each week in the data (typically two).
     """
     return (
         output_df.join(
@@ -47,19 +46,7 @@ def compute_epiweek_error(
         )
         .with_columns(
             pl.col("cumulative_confirmation_incidence").fill_null(0),
-        )
-        .with_columns(
-            (
-                pl.col("cumulative_confirmation_incidence")
-                - pl.col("cumulative_confirmation_incidence_target")
-            ).alias("error_cumulative_confirmation"),
             pl.lit(report_date).cast(pl.Date).alias("report_date"),
-        )
-        .with_columns(
-            (
-                pl.col("error_cumulative_confirmation").abs()
-                / pl.col("cumulative_confirmation_incidence_target")
-            ).alias("relative_error_cumulative_confirmation"),
         )
         .with_columns(
             (
@@ -258,9 +245,6 @@ class DetectionBandProcessor(NaturalHistoryProcessor):
         if output_df.height == 0:
             return MAX_FLOAT
 
-        if any(output_df["error_cumulative_confirmation"] < 0):
-            return MAX_FLOAT  # Model underestimates cumulative confirmations, which is not allowed
-
         # Detection band distance function is calculated here once main filtering is done
         lower_detection, upper_detection = self.detection_band
         outside_bounds = output_df.filter(
@@ -276,9 +260,19 @@ class DetectionBandProcessor(NaturalHistoryProcessor):
 
     def get_target_data(self, target_data_file: dict[str, Path]) -> pl.DataFrame:
         """
-        Collect cumulative confirmations inside the target data since threshold date
-        Return the cumulative confirmations for the first epiweek that is at least 3 weeks after the threshold date and the final epiweek
+        Collect cumulative confirmations inside the target data since threshold date when interventions began
+
+        Returns a data frame with two rows, containing the cumualtive cases over a time period immediately following intervention initiation.
+        The first time period is defined by ``TDELTA_STARTPOINT_POSTINTERVENTION`` and ``TDELTA_FIRST_ENDPOINT_POSTINTERVENTION``,
+        which are time delays in days following the threshold date to select epiweek start dates.
+        The second time period is the total of the time series, through the last complete week of data.
+        For example, if a threshold date of May 24th is used:
+            ``TDELTA_STARTPOINT_POSTINTERVENTION=8`` refers to June 1
+            ``TDELTA_ENDPOINT_POSTINTERVENTION=21`` refers to June 15
+        such that the confirmed cases are summed from June 1 (inclusive) through June 21 (inclusive),
+        and are then summed from June 1 (inclusive) until the end of the last complete epiweek of the data.
         """
+
         confirmation_data = pl.read_csv(target_data_file["confirmation"]).filter(
             pl.col("case_status") == "Confirmed"
         )
@@ -339,7 +333,7 @@ class DetectionBandProcessor(NaturalHistoryProcessor):
             )
             .filter(
                 (
-                    # Filter to epiweeks that are at least 3 weeks after the threshold date
+                    # Filter to epiweeks that are at least a delay after the intervention threshold date
                     pl.col("epiweek_startdate")
                     >= pl.col("threshold_date")
                     + dt.timedelta(days=TDELTA_FIRST_ENDPOINT_POSTINTERVENTION)
