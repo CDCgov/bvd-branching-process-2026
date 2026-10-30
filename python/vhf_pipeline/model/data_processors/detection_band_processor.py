@@ -202,8 +202,19 @@ class DetectionBandProcessor(NaturalHistoryProcessor):
     def estimate_error(
         self, outputs: dict[str, pl.DataFrame], target_df: pl.DataFrame
     ) -> float:
-        """Estimate the error between the model outputs and the target data.
-        Returns relative difference between weekly cumulative confirmation."""
+        """Return an effectively boolean value of whether simulations results are appropriately in the detection
+        band for each epiweek assessed. Only simulations that have all epiweeks in target_df inside the owned
+        detection band return a value other than MAX_FLOAT.
+
+        If the maximum allowable number of cases generated in a model, or the maximum allowable number
+        of deaths generated, are too low, then this test will reject simulations that otherwise might be
+        appropriate. Foir this reason, assert that the maximum cases is well above the observed maximum cases
+        divided by the lower detection threshold.
+        For example, if the target_df hasa final epiweek with 10K cumulative cases, and a detection band of [0.2, 0.6]
+        is used, then the maximum cases allowable in a model should be no less than 50K and there should be no deaths
+        trigger to end the simulation.
+        This is analogous to setting the appropriate end time point of the simulation configuration.
+        """
         report_date = target_df.select("report_date").max().cast(pl.Date).item()
         assert target_df.select("threshold_date").n_unique() == 1, (
             "Multiple unique threshold_date values in target_df are not supported."
