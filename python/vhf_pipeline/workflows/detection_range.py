@@ -211,7 +211,9 @@ class DetectionRangeWorkflow(Workflow[DetectionRangeArgs]):
             output_dir=args.output_subdir,
             subdir_name=scenario_name,
             config_file=args.main_config,
-            ixa_scenario_overrides=None,
+            ixa_scenario_overrides={
+                "end_run_conditions": {"max_time": 450.0, "max_cases": 70000}
+            },
             cache=args.cache,
             refresh_cache=cache_refresh.flag,
             reuse_across_binary=args.reuse_across_binary,

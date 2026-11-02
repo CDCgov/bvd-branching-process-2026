@@ -15,21 +15,9 @@
         "entropy": 188178541513900933870725919196083449244,
         "clean": true,
         "keep_previous_population_data": true,
-        "default_ixa_overrides": {
-            "end_run_conditions": {
-                "max_time": 450.0,
-                "max_cases": 30000
-            }
-        },
         "prob_keep_seed": 0.05
     },
     "projection": {
-        "clean": false,
-        "default_ixa_overrides": {
-            "end_run_conditions": {
-                "max_time": 450.0,
-                "max_cases": 70000
-            }
-        }
+        "clean": false
     }
 }

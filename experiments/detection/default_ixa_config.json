@@ -84,7 +84,7 @@
         },
         "end_run_conditions": {
             "max_time": 450.0,
-            "max_deaths": 10000
+            "max_cases": 70000
         }
     }
 }
