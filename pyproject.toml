@@ -19,7 +19,6 @@ dependencies = [
     "griddler",
     "epiweeks>=2.4.0",
     "requests>=2.31.0",
-    "geopandas>=1.1.4",
 ]
 
 [project.scripts]
