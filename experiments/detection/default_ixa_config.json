@@ -26,7 +26,7 @@
         "quarantine_transmission_probability": 1.0,
         "etu_transmission_probability": 1.0,
         "active_detection_probability": 0.0,
-        "passive_detection_probability": 0.5,
+        "passive_detection_probability": 1.0,
         "passive_detection_delay_distribution": {
             "Exp": {
                 "rate": 0.5
@@ -83,8 +83,8 @@
             "scalar": 1.0
         },
         "end_run_conditions": {
-            "max_time": 400.0,
-            "max_deaths": 10000
+            "max_time": 450.0,
+            "max_cases": 70000
         }
     }
 }

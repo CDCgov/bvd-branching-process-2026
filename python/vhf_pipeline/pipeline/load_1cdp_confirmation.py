@@ -6,6 +6,7 @@ import polars as pl
 
 from vhf_pipeline import paths
 from vhf_pipeline.pipeline.get_foundry_data import save_foundry_input
+from vhf_pipeline.utils import DATE_SCHEMA_OVERRIDES
 
 GLOBAL_L0_NAME = "global_L0_national_clean_daily.csv"
 ISO3C_VALUES = Literal["COD", "UGA", "FRA"]
@@ -25,7 +26,6 @@ def _process_1cdp_confirmation_data(
         .select("date", "cases_confirmed_incident")
         .group_by("date")
         .agg(pl.sum("cases_confirmed_incident").alias("count"))
-        .with_columns(pl.col("date").cast(pl.Date))
         .filter(pl.col("date") <= max_data_date)
         .with_columns(pl.lit("Confirmed").alias("case_status"))
         .sort("date")
@@ -47,7 +47,9 @@ def load_1cdp_confirmation(
     )
     if cache and cache_dir.exists():
         print(f"Using cached data from {cache_dir}")
-        processed_data = pl.read_csv(cache_dir / filename)
+        processed_data = pl.read_csv(
+            cache_dir / filename, schema_overrides=DATE_SCHEMA_OVERRIDES
+        )
         processed_data.write_csv(paths.data_input_dir() / filename)
         new_data_used = False
 
@@ -58,7 +60,10 @@ def load_1cdp_confirmation(
             rid_override="global_L0_national_clean_daily",
             verbose=True,
         )
-        raw_data = pl.read_csv(paths.data_input_dir() / GLOBAL_L0_NAME)
+        raw_data = pl.read_csv(
+            paths.data_input_dir() / GLOBAL_L0_NAME,
+            schema_overrides=DATE_SCHEMA_OVERRIDES,
+        )
 
         # Process the raw data to get daily confirmed cases
         processed_data = _process_1cdp_confirmation_data(

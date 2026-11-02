@@ -47,8 +47,11 @@ def tiny_calibration_config(base_config, tmp_path, monkeypatch) -> dict:
     exercising the calibrate machinery, not the realized fit."""
     data_dir = tmp_path / "data"
     data_dir.mkdir()
-    (data_dir / "thresh.csv").write_text(
+    (data_dir / "thresh_upr.csv").write_text(
         "threshold,threshold_lag,threshold_date\n2.0,0,2026-05-24\n"
+    )
+    (data_dir / "thresh_lwr.csv").write_text(
+        "threshold,threshold_lag,threshold_date\n0.0,0,2026-05-24\n"
     )
     # One full epiweek (ISO week 25: 2026-06-15 to 2026-06-21).
     # threshold_date (2026-05-24) + 21 days = 2026-06-14, so this week qualifies.
@@ -59,7 +62,8 @@ def tiny_calibration_config(base_config, tmp_path, monkeypatch) -> dict:
     monkeypatch.setenv("DATA_INPUT_DIR", str(data_dir))
 
     cfg = base_config
-    cfg["target_data_file"]["deaths_threshold"] = "thresh.csv"
+    cfg["target_data_file"]["deaths_upper_threshold"] = "thresh_upr.csv"
+    cfg["target_data_file"]["deaths_lower_threshold"] = "thresh_lwr.csv"
     cfg["target_data_file"]["confirmation"] = "incidence.csv"
     cfg["default_ixa_overrides"] = {
         "initialization": {

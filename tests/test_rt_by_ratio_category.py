@@ -73,7 +73,7 @@ class TestRatioCategory:
 
     def test_values_outside_range_return_null(self):
         result = self._apply([0.10, 0.19, 0.61, 1.00])
-        assert all(v is None for v in result)
+        assert all(v == "OUTSIDE_BOUNDS" for v in result)
 
     def test_exactly_0_50_belongs_to_50_60_bin(self):
         assert self._apply([0.50]) == ["50-60%"]

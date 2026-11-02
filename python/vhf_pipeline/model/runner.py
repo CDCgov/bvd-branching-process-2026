@@ -7,6 +7,8 @@ from typing import Any
 import polars as pl
 from mrp import MRPModel
 
+from vhf_pipeline.utils import DATE_SCHEMA_OVERRIDES
+
 _MODEL_PARAMETERS_NAME = "evdmodel.Parameters"
 
 
@@ -109,7 +111,12 @@ class VHFModel(MRPModel):
                 if relative_output_file.exists():
                     try:
                         outputs.update(
-                            {output["name"]: pl.read_csv(relative_output_file)}
+                            {
+                                output["name"]: pl.read_csv(
+                                    relative_output_file,
+                                    schema_overrides=DATE_SCHEMA_OVERRIDES,
+                                )
+                            }
                         )
                     except pl.exceptions.NoDataError:
                         outputs.update({output["name"]: pl.DataFrame()})
@@ -120,7 +127,13 @@ class VHFModel(MRPModel):
             elif output["spec"] == "absolute":
                 if Path(fp).exists():
                     try:
-                        outputs.update({output["name"]: pl.read_csv(Path(fp))})
+                        outputs.update(
+                            {
+                                output["name"]: pl.read_csv(
+                                    Path(fp), schema_overrides=DATE_SCHEMA_OVERRIDES
+                                )
+                            }
+                        )
                     except pl.exceptions.NoDataError:
                         outputs.update({output["name"]: pl.DataFrame()})
                 else:

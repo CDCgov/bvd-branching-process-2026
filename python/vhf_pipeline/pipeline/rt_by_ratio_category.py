@@ -20,6 +20,7 @@ from vhf_pipeline.pipeline.shared_plotting_data import (
     save_particle_detection_rate,
 )
 from vhf_pipeline.utils import (
+    DATE_SCHEMA_OVERRIDES,
     get_cumulative_symptomatic_cases,
     load_intervention_date,
     load_simulation_start_date,
@@ -51,7 +52,7 @@ def _ratio_category(column_name: str) -> pl.Expr:
         .then(pl.lit("40-50%"))
         .when((pl.col(column_name) >= 0.5) & (pl.col(column_name) <= 0.6))
         .then(pl.lit("50-60%"))
-        .otherwise(None)
+        .otherwise(pl.lit("OUTSIDE_BOUNDS"))
     )
 
 
@@ -82,8 +83,10 @@ def _load_particle_rt(
         duration=window_duration,
     )
     particle_rt = (
-        pl.read_csv(run_dir / "projection" / "all_rt_reports.csv")
-        .with_columns(pl.col("infection_date").cast(pl.Date))
+        pl.read_csv(
+            run_dir / "projection" / "all_rt_reports.csv",
+            schema_overrides=DATE_SCHEMA_OVERRIDES,
+        )
         .filter(
             (pl.col("infection_date") >= start_date)
             & (pl.col("infection_date") <= end_date)
@@ -105,8 +108,10 @@ def _load_particle_basic_rt(
     end_date = intervention_date - dt.timedelta(days=1)
     start_date = end_date - dt.timedelta(days=window_days - 1)
     return (
-        pl.read_csv(run_dir / "projection" / "all_rt_reports.csv")
-        .with_columns(pl.col("infection_date").cast(pl.Date))
+        pl.read_csv(
+            run_dir / "projection" / "all_rt_reports.csv",
+            schema_overrides=DATE_SCHEMA_OVERRIDES,
+        )
         .filter(
             (pl.col("infection_date") >= start_date)
             & (pl.col("infection_date") <= end_date)
@@ -223,7 +228,10 @@ def _summarize_by_late_category(joined: pl.DataFrame) -> pl.DataFrame:
 
 
 def _load_inputs_df(run_dir: Path) -> pl.DataFrame:
-    return pl.read_csv(run_dir / "projection" / "all_simulation_inputs.csv")
+    return pl.read_csv(
+        run_dir / "projection" / "all_simulation_inputs.csv",
+        schema_overrides=DATE_SCHEMA_OVERRIDES,
+    )
 
 
 def _build_pretty_inputs_summary(
@@ -286,7 +294,10 @@ def _load_particle_outbreak_size(
 ) -> pl.DataFrame:
     return (
         get_cumulative_symptomatic_cases(
-            pl.read_csv(run_dir / "projection" / "all_prevalence_reports.csv"),
+            pl.read_csv(
+                run_dir / "projection" / "all_prevalence_reports.csv",
+                schema_overrides=DATE_SCHEMA_OVERRIDES,
+            ),
             max_date=projection_date,
         )
         .group_by("particle_id")
@@ -706,7 +717,7 @@ def _build_summary_table(
             "particle_id",
             "later_ratio_category",
             "particle_rt",
-            "observed_detection_rate_target_early",
+            "observed_detection_early",
         )
         .join(basic_rt_df, on="particle_id", how="left")
         .join(
@@ -718,7 +729,7 @@ def _build_summary_table(
     )
 
     transform_exprs = [
-        (pl.col("observed_detection_rate_target_early") * 100).alias("detection_pct")
+        (pl.col("observed_detection_early") * 100).alias("detection_pct")
     ]
     if has_spillover:
         transform_exprs.append(_spillover_ordinals_expr(base_ord))
@@ -862,7 +873,7 @@ def _plot_cumulative_cases_by_ratio_category(
         )
         if onset_filtered.height > 0:
             sns.lineplot(
-                data=onset_filtered,
+                data=onset_filtered.to_pandas(),
                 x="date",
                 y="cumulative_count",
                 estimator=None,
@@ -876,7 +887,7 @@ def _plot_cumulative_cases_by_ratio_category(
         )
         if cum_cases_filtered.height > 0:
             sns.lineplot(
-                data=cum_cases_filtered,
+                data=cum_cases_filtered.to_pandas(),
                 x="date",
                 y="cumulative_cases",
                 estimator=None,
@@ -887,7 +898,7 @@ def _plot_cumulative_cases_by_ratio_category(
             )
 
         sns.scatterplot(
-            data=target_data.filter(pl.col("date") <= max_report_date),
+            data=target_data.filter(pl.col("date") <= max_report_date).to_pandas(),
             x="date",
             y="cumulative_confirmation_incidence",
             color="red",
@@ -927,23 +938,20 @@ def main(
     figures_dir.mkdir(parents=True, exist_ok=True)
 
     data = load_scenario_data(output_dir, calibration_subdir, products_dir)
-    # Load simulations
-    _all_sims_df = pl.read_csv(run_dir / "projection" / "all_simulations.csv")
-    if "epiweek_startdate" in _all_sims_df.columns:
-        projected_report_data = _all_sims_df.with_columns(
-            pl.col("epiweek_startdate").cast(pl.Date)
-        ).rename({"epiweek_startdate": "date"})
-    else:
-        projected_report_data = _all_sims_df.with_columns(pl.col("date").cast(pl.Date))
-    if not (products_dir / "particle_confirmation_errors.csv").exists():
-        save_particle_detection_rate(
-            target_data=data["target_data"],
-            projected_report_data=projected_report_data,
-            products_dir=products_dir,
-        )
+    confirmation_report_df = pl.read_csv(
+        run_dir / "projection" / "all_confirmation_incidence_reports.csv",
+        schema_overrides=DATE_SCHEMA_OVERRIDES,
+    )
+
+    save_particle_detection_rate(
+        target_data=data["target_data"],
+        confirmation_report_data=confirmation_report_df,
+        products_dir=products_dir,
+    )
 
     ratio_df = pl.read_csv(
-        products_dir / "particle_observed_detection.csv", try_parse_dates=True
+        products_dir / "particle_observed_detection.csv",
+        schema_overrides=DATE_SCHEMA_OVERRIDES,
     )
     particle_rt, rt_start_date, rt_end_date = _load_particle_rt(
         run_dir=run_dir,
@@ -953,12 +961,8 @@ def main(
     joined = (
         ratio_df.join(particle_rt, on="particle_id", how="inner")
         .with_columns(
-            _ratio_category("observed_detection_rate_target_early").alias(
-                "earlier_ratio_category"
-            ),
-            _ratio_category("observed_detection_rate_target_late").alias(
-                "later_ratio_category"
-            ),
+            _ratio_category("observed_detection_early").alias("earlier_ratio_category"),
+            _ratio_category("observed_detection_late").alias("later_ratio_category"),
         )
         .drop_nulls(["earlier_ratio_category", "later_ratio_category"])
         .sort("particle_id")
@@ -1043,7 +1047,8 @@ def main(
 
     # ── Figures ───────────────────────────────────────────────────────────────
     prevalence_report_df = pl.read_csv(
-        run_dir / "projection" / "all_prevalence_reports.csv"
+        run_dir / "projection" / "all_prevalence_reports.csv",
+        schema_overrides=DATE_SCHEMA_OVERRIDES,
     )
     _plot_cumulative_cases_by_ratio_category(
         target_data=data["target_data"],
