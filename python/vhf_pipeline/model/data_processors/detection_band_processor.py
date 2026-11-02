@@ -4,7 +4,7 @@ from pathlib import Path
 import numpy as np
 import polars as pl
 
-from ...utils import assign_epiweek, exponential_forward_fill
+from ...utils import DATE_SCHEMA_OVERRIDES, assign_epiweek, exponential_forward_fill
 from .base_class import NaturalHistoryProcessor
 
 MAX_FLOAT = np.finfo(np.float32).max
@@ -46,7 +46,7 @@ def compute_epiweek_error(
         )
         .with_columns(
             pl.col("cumulative_confirmation_incidence").fill_null(0),
-            pl.lit(report_date).cast(pl.Date).alias("report_date"),
+            pl.lit(report_date, dtype=pl.Date).alias("report_date"),
         )
         .with_columns(
             (
@@ -99,15 +99,11 @@ class DetectionBandProcessor(NaturalHistoryProcessor):
             return default_empty
 
         if report_date is None:
-            report_date = confirmation_df.select(pl.max("date").cast(pl.Date)).item()
+            report_date = confirmation_df.select(pl.max("date")).item()
         if recording_start is None:
-            recording_start = confirmation_df.select(
-                pl.min("date").cast(pl.Date)
-            ).item()
+            recording_start = confirmation_df.select(pl.min("date")).item()
 
-        confirmation_df = confirmation_df.with_columns(
-            pl.col("date").cast(pl.Date)
-        ).filter(
+        confirmation_df = confirmation_df.filter(
             (pl.col("case_status") == "Confirmed")
             & (pl.col("date") <= report_date)
             & (pl.col("date") >= recording_start)
@@ -164,8 +160,7 @@ class DetectionBandProcessor(NaturalHistoryProcessor):
     ) -> bool:
         """Return True if cumulative deaths at intervention_start_date do not exceed threshold."""
         cumulative_deaths = (
-            prevalence_report.with_columns(pl.col("date").cast(pl.Date))
-            .filter(pl.col("date") == intervention_start_date)
+            prevalence_report.filter(pl.col("date") == intervention_start_date)
             .group_by("date")
             .agg(
                 pl.when(~pl.col("alive"))
@@ -193,9 +188,9 @@ class DetectionBandProcessor(NaturalHistoryProcessor):
         """
         if confirmation_report.height == 0:
             return False
-        sim_end = confirmation_report.select(pl.col("date").cast(pl.Date).max()).item()
+        sim_end = confirmation_report.select(pl.col("date").max()).item()
         last_epiweek_end = target_df.select(
-            pl.col("epiweek_startdate").cast(pl.Date).max()
+            pl.max("epiweek_startdate")
         ).item() + dt.timedelta(days=6)
         return sim_end >= last_epiweek_end
 
@@ -215,7 +210,7 @@ class DetectionBandProcessor(NaturalHistoryProcessor):
         trigger to end the simulation.
         This is analogous to setting the appropriate end time point of the simulation configuration.
         """
-        report_date = target_df.select("report_date").max().cast(pl.Date).item()
+        report_date = target_df.select(pl.max("report_date")).item()
         assert target_df.select("threshold_date").n_unique() == 1, (
             "Multiple unique threshold_date values in target_df are not supported."
         )
@@ -284,16 +279,22 @@ class DetectionBandProcessor(NaturalHistoryProcessor):
         and are then summed from June 1 (inclusive) until the end of the last complete epiweek of the data.
         """
 
-        confirmation_data = pl.read_csv(target_data_file["confirmation"]).filter(
-            pl.col("case_status") == "Confirmed"
-        )
+        confirmation_data = pl.read_csv(
+            target_data_file["confirmation"], schema_overrides=DATE_SCHEMA_OVERRIDES
+        ).filter(pl.col("case_status") == "Confirmed")
         deaths_upper_threshold_data = (
-            pl.read_csv(target_data_file["deaths_upper_threshold"])
+            pl.read_csv(
+                target_data_file["deaths_upper_threshold"],
+                schema_overrides=DATE_SCHEMA_OVERRIDES,
+            )
             .select("threshold", "threshold_date")
             .rename({"threshold": "deaths_upper_threshold"})
         )
         deaths_lower_threshold_data = (
-            pl.read_csv(target_data_file["deaths_lower_threshold"])
+            pl.read_csv(
+                target_data_file["deaths_lower_threshold"],
+                schema_overrides=DATE_SCHEMA_OVERRIDES,
+            )
             .select("threshold", "threshold_date")
             .rename({"threshold": "deaths_lower_threshold"})
         )
@@ -314,9 +315,6 @@ class DetectionBandProcessor(NaturalHistoryProcessor):
                 deaths_threshold_data,
                 how="cross",
             )
-            .with_columns(
-                pl.col("date").cast(pl.Date), pl.col("threshold_date").cast(pl.Date)
-            )
             # Drop target data before the start of interventions
             .filter(
                 pl.col("date")
@@ -333,7 +331,7 @@ class DetectionBandProcessor(NaturalHistoryProcessor):
             confirmation_data.join(
                 deaths_threshold_data.select(
                     "deaths_lower_threshold", "deaths_upper_threshold", "threshold_date"
-                ).with_columns(pl.col("threshold_date").cast(pl.Date)),
+                ),
                 how="cross",
             )
             .with_columns(

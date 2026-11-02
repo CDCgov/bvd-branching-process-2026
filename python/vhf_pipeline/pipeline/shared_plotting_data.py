@@ -13,7 +13,7 @@ import polars as pl
 from vhf_pipeline import ProjectionContext
 from vhf_pipeline.model import compute_epiweek_error
 from vhf_pipeline.model.data_processors import DetectionBandProcessor
-from vhf_pipeline.utils import get_cumulative_symptomatic_cases
+from vhf_pipeline.utils import DATE_SCHEMA_OVERRIDES, get_cumulative_symptomatic_cases
 
 
 def get_cumulative_cases(
@@ -58,7 +58,7 @@ def save_particle_detection_rate(
             f"confirmation_report_data is missing required columns: {sorted(missing)}"
         )
 
-    max_report_date = target_data.select(pl.max("report_date").cast(pl.Date)).item()
+    max_report_date = target_data.select(pl.max("report_date")).item()
     assert target_data.select("threshold_date").n_unique() == 1, (
         "Multiple threshold_date values in target_data are not supported."
     )
@@ -149,13 +149,12 @@ def load_scenario_data(
 
     context = ProjectionContext(config, output_dir / calibration_subdir)
     _target_data_raw = context.get_target_data()
-    _cast_exprs = [pl.col("report_date").cast(pl.Date)]
     if "epiweek_startdate" in _target_data_raw.columns:
-        _cast_exprs.append(pl.col("epiweek_startdate").cast(pl.Date).alias("date"))
-        target_data = _target_data_raw.with_columns(_cast_exprs)
+        target_data = _target_data_raw.with_columns(
+            pl.col("epiweek_startdate").alias("date")
+        )
     else:
-        _cast_exprs.append(pl.col("date").cast(pl.Date))
-        target_data = _target_data_raw.with_columns(_cast_exprs)
+        target_data = _target_data_raw
 
     if "cumulative_confirmation_incidence" not in target_data.columns:
         target_data = target_data.with_columns(
@@ -168,11 +167,15 @@ def load_scenario_data(
     projection_dir = output_dir / calibration_subdir / context.mode
 
     print("Reading simulation inputs...")
-    inputs_df = pl.read_csv(projection_dir / "all_simulation_inputs.csv")
+    inputs_df = pl.read_csv(
+        projection_dir / "all_simulation_inputs.csv",
+        schema_overrides=DATE_SCHEMA_OVERRIDES,
+    )
 
     print("Reading symptom onset report...")
     symptom_onset_report_df = pl.read_csv(
-        projection_dir / "all_symptom_onset_reports.csv"
+        projection_dir / "all_symptom_onset_reports.csv",
+        schema_overrides=DATE_SCHEMA_OVERRIDES,
     )
     _required_onset_cols = {"date", "particle_id", "count", "case_status"}
     if _required_onset_cols.issubset(set(symptom_onset_report_df.columns)):
@@ -187,7 +190,6 @@ def load_scenario_data(
                 .alias("confirmed_count"),
             )
             .join(inputs_df, on="particle_id")
-            .with_columns(pl.col("date").cast(pl.Date))
         )
     else:
         print(
@@ -205,7 +207,10 @@ def load_scenario_data(
     onset_data.write_csv(products_dir / "symptom_onset_over_time.csv")
 
     print("Reading prevalence report...")
-    prevalence_report_df = pl.read_csv(projection_dir / "all_prevalence_reports.csv")
+    prevalence_report_df = pl.read_csv(
+        projection_dir / "all_prevalence_reports.csv",
+        schema_overrides=DATE_SCHEMA_OVERRIDES,
+    )
     prevalence_df = (
         prevalence_report_df.filter(
             pl.col("infection_status").is_in(
@@ -214,9 +219,10 @@ def load_scenario_data(
         )
         .group_by("date", "particle_id")
         .agg(pl.sum("count").alias("cumulative_infections"))
-    ).with_columns(pl.col("date").cast(pl.Date))
+    )
     prevalence_df.write_csv(products_dir / "prevalence_over_time.csv")
 
+    target_data.write_csv(products_dir / "target_data.csv")
     return {
         "target_data": target_data,
         "inputs_df": inputs_df,

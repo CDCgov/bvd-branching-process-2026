@@ -26,7 +26,7 @@
         "quarantine_transmission_probability": 1.0,
         "etu_transmission_probability": 1.0,
         "active_detection_probability": 0.0,
-        "passive_detection_probability": 0.5,
+        "passive_detection_probability": 1.0,
         "passive_detection_delay_distribution": {
             "Exp": {
                 "rate": 0.5

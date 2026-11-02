@@ -139,8 +139,6 @@ def test_detection_workflow_writes_manifest(tmp_path, monkeypatch):
     monkeypatch.setenv("OUTPUT_DIR", str(tmp_path / "out"))
     config = tmp_path / "config.json"
     config.write_text("{}")
-    scenarios = tmp_path / "all_confirmed_scenario.json"
-    scenarios.write_text("[]")
 
     dr.WORKFLOW.main(
         [
@@ -148,8 +146,6 @@ def test_detection_workflow_writes_manifest(tmp_path, monkeypatch):
             "sub",
             "-c",
             str(config),
-            "--scenarios",
-            str(scenarios),
         ]
     )
 
@@ -159,4 +155,3 @@ def test_detection_workflow_writes_manifest(tmp_path, monkeypatch):
     assert (
         manifest["inputs"]["config_file"]["sha256"] == hashlib.sha256(b"{}").hexdigest()
     )
-    assert manifest["inputs"]["scenarios"]["exists"] is True

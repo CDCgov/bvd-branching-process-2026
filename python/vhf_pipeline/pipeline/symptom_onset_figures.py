@@ -19,7 +19,7 @@ from vhf_pipeline.pipeline.shared_plotting_data import (
     get_cumulative_cases,
     load_scenario_data,
 )
-from vhf_pipeline.utils import assign_epiweek
+from vhf_pipeline.utils import DATE_SCHEMA_OVERRIDES, assign_epiweek
 
 
 def _plot_posterior_diversity(
@@ -74,11 +74,13 @@ def _plot_cumulative_cases(
             .cum_sum()
             .over("particle_id", order_by="date")
             .alias("cumulative_count")
-        ).filter(
+        )
+        .filter(
             (pl.col("date") <= max_report_date)
             & (pl.col("date") >= min_date)
             & pl.col("particle_id").is_in(particle_ids)
-        ),
+        )
+        .to_pandas(),
         x="date",
         y="cumulative_count",
         estimator=None,
@@ -90,7 +92,7 @@ def _plot_cumulative_cases(
     )
 
     sns.lineplot(
-        data=cumulative_case_df,
+        data=cumulative_case_df.to_pandas(),
         x="date",
         y="cumulative_cases",
         estimator=None,
@@ -100,7 +102,7 @@ def _plot_cumulative_cases(
     )
 
     sns.scatterplot(
-        data=target_data.filter(pl.col("date") <= max_report_date),
+        data=target_data.filter(pl.col("date") <= max_report_date).to_pandas(),
         x="date",
         y="cumulative_confirmation_incidence",
         color="red",
@@ -141,7 +143,9 @@ def _plot_cumulative_confirmed(
             .cum_sum()
             .over("particle_id", order_by="date")
             .alias("cumulative_confirmed")
-        ).filter((pl.col("date") <= max_report_date) & (pl.col("date") >= min_date)),
+        )
+        .filter((pl.col("date") <= max_report_date) & (pl.col("date") >= min_date))
+        .to_pandas(),
         x="date",
         y="cumulative_confirmed",
         estimator=None,
@@ -150,7 +154,7 @@ def _plot_cumulative_confirmed(
     )
 
     sns.scatterplot(
-        data=target_data.filter(pl.col("date") <= max_report_date),
+        data=target_data.filter(pl.col("date") <= max_report_date).to_pandas(),
         x="date",
         y="cumulative_confirmation_incidence",
         color="red",
@@ -178,8 +182,7 @@ def _plot_cumulative_deaths(
     does not filter by detection status.
     """
     deaths = (
-        prevalence_report_df.with_columns(pl.col("date").cast(pl.Date))
-        .filter(~pl.col("alive"))
+        prevalence_report_df.filter(~pl.col("alive"))
         .group_by("date", "particle_id")
         .agg(pl.sum("count").alias("cumulative_deaths"))
     )
@@ -190,7 +193,7 @@ def _plot_cumulative_deaths(
 
     plt.figure(figsize=(6.4, 4.8))
     sns.lineplot(
-        data=deaths,
+        data=deaths.to_pandas(),
         x="date",
         y="cumulative_deaths",
         estimator=None,
@@ -225,7 +228,7 @@ def _plot_incidence_comparison(
     )
 
     sns.barplot(
-        data=projected_report_data,
+        data=projected_report_data.to_pandas(),
         x="date",
         y="symptom_onset_incidence",
         errorbar=("pi", 50),
@@ -235,7 +238,7 @@ def _plot_incidence_comparison(
     )
 
     sns.pointplot(
-        data=target_data.filter(pl.col("date") <= pl.col("report_date")),
+        data=target_data.filter(pl.col("date") <= pl.col("report_date")).to_pandas(),
         x="date",
         y="symptom_onset_incidence",
         color="red",
@@ -279,7 +282,7 @@ def _plot_weekly_confirmation_indicator(
         data=weekly_confirmed_cases.filter(
             (pl.col("epiweek_startdate") >= date_range[0])
             & (pl.col("epiweek_startdate") <= date_range[1])
-        ),
+        ).to_pandas(),
         x="epiweek_startdate",
         y="proportion_from_confirmed_index",
         units="particle_id",
@@ -316,7 +319,7 @@ def _plot_weekly_rt(
         data=weekly_rt.filter(
             (pl.col("epiweek_startdate") >= date_range[0])
             & (pl.col("epiweek_startdate") <= date_range[1])
-        ),
+        ).to_pandas(),
         x="epiweek_startdate",
         y="weekly_rt",
         units="particle_id",
@@ -372,7 +375,7 @@ def _plot_final_cases_against_detection_probability(
     end_date = cumulative.select(pl.max("final_date")).item()
 
     sns.scatterplot(
-        data=cumulative,
+        data=cumulative.to_pandas(),
         x="passive_detection_probability",
         y="final_cumulative_cases",
         alpha=0.5,
@@ -560,7 +563,7 @@ def _save_error_history_plot(
 
     plt.figure(figsize=(6.4, 4.8))
     G = sns.catplot(
-        data=distance_df,
+        data=distance_df.to_pandas(),
         x="distance",
         hue="step",
         row="step",
@@ -609,7 +612,7 @@ def _plot_simulations_by_distance(
     # detection_band processor when computing distance.
     plot_df = projected_report_data.filter(
         (pl.col("date") <= max_report_date) & (pl.col("date") >= min_date)
-    ).with_columns(pl.col("date").cast(pl.Date))
+    )
 
     # One total_error value per particle (constant across rows for that particle).
     particle_errors = (
@@ -697,14 +700,17 @@ def main(
         calibration_results: CalibrationResults = pickle.load(fp)
 
     # Load simulations
-    prevalence_report_df = pl.read_csv(projection_dir / "all_prevalence_reports.csv")
-    _all_sims_df = pl.read_csv(projection_dir / "all_simulations.csv")
+    prevalence_report_df = pl.read_csv(
+        projection_dir / "all_prevalence_reports.csv",
+        schema_overrides=DATE_SCHEMA_OVERRIDES,
+    )
+    _all_sims_df = pl.read_csv(
+        projection_dir / "all_simulations.csv", schema_overrides=DATE_SCHEMA_OVERRIDES
+    )
     if "epiweek_startdate" in _all_sims_df.columns:
-        projected_report_data = _all_sims_df.with_columns(
-            pl.col("epiweek_startdate").cast(pl.Date)
-        ).rename({"epiweek_startdate": "date"})
+        projected_report_data = _all_sims_df.rename({"epiweek_startdate": "date"})
     else:
-        projected_report_data = _all_sims_df.with_columns(pl.col("date").cast(pl.Date))
+        projected_report_data = _all_sims_df
 
     # Generate figures
     print("Generating figures...")
@@ -740,7 +746,7 @@ def main(
     rt_reports_file = (
         output_dir / calibration_subdir / "projection" / "all_rt_reports.csv"
     )
-    rt_reports = pl.read_csv(rt_reports_file)
+    rt_reports = pl.read_csv(rt_reports_file, schema_overrides=DATE_SCHEMA_OVERRIDES)
     _plot_weekly_rt(rt_reports, figures_dir)
 
     confirmed_cases_file = (
@@ -749,7 +755,9 @@ def main(
         / "projection"
         / "all_confirmation_incidence_reports.csv"
     )
-    confirmed_cases = pl.read_csv(confirmed_cases_file)
+    confirmed_cases = pl.read_csv(
+        confirmed_cases_file, schema_overrides=DATE_SCHEMA_OVERRIDES
+    )
     _plot_weekly_confirmation_indicator(confirmed_cases, figures_dir)
 
     # Distance history

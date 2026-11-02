@@ -55,9 +55,9 @@ def test_cli_workflow_dispatches_with_remaining_args(monkeypatch):
     captured: dict = {}
     monkeypatch.setattr(dr.WORKFLOW, "main", lambda argv: captured.update(argv=argv))
 
-    main(["workflow", "detection", "-o", "sub", "--griddle", "g.json"])
+    main(["workflow", "detection", "-o", "sub"])
 
-    assert captured["argv"] == ["-o", "sub", "--griddle", "g.json"]
+    assert captured["argv"] == ["-o", "sub"]
 
 
 def test_cli_model_run_writes_outputs(tmp_path, model_binary, capsys):

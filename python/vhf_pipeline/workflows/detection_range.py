@@ -6,12 +6,13 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
+import polars as pl
+
 from vhf_pipeline.cli.run_model import _load_json
 from vhf_pipeline.pipeline.load_1cdp_confirmation import (
     ISO3C_VALUES,
     load_1cdp_confirmation,
 )
-from vhf_pipeline.utils.read_griddle import read_griddle
 
 from .. import paths
 from ..pipeline import (
@@ -29,7 +30,6 @@ from .base import Workflow
 
 # Default arguments declaration -------------------
 DEFAULT_CONFIG = "experiments/detection/config.json"
-DEFAULT_SCENARIOS = "experiments/detection/all_confirmed_scenario.json"
 THRESHOLD_UPPER_BOUND = 500
 THRESHOLD_LOWER_BOUND = 50
 PROJECTION_DATE = dt.date(2026, 9, 30)  # The date to project to for the figures.
@@ -44,7 +44,6 @@ class DetectionRangeArgs:
     main_config: str = DEFAULT_CONFIG
     threshold_upper_bound: int = THRESHOLD_UPPER_BOUND
     threshold_lower_bound: int = THRESHOLD_LOWER_BOUND
-    scenarios: str = DEFAULT_SCENARIOS
     cache: bool = True
     refresh_cache: bool = False
     reuse_across_binary: bool = False
@@ -75,7 +74,6 @@ class DetectionRangeWorkflow(Workflow[DetectionRangeArgs]):
         parser.add_argument("-c", "--main-config", default=DEFAULT_CONFIG)
 
         # Parse input parameters
-        parser.add_argument("--scenarios", default=DEFAULT_SCENARIOS)
         parser.add_argument(
             "--threshold-upper-bound",
             type=int,
@@ -141,7 +139,6 @@ class DetectionRangeWorkflow(Workflow[DetectionRangeArgs]):
             threshold_upper_bound=ns.threshold_upper_bound,
             threshold_lower_bound=ns.threshold_lower_bound,
             cache=ns.cache,
-            scenarios=ns.scenarios,
             refresh_cache=ns.refresh_cache,
             reuse_across_binary=ns.reuse_across_binary,
             max_data_date=ns.max_data_date,
@@ -156,7 +153,6 @@ class DetectionRangeWorkflow(Workflow[DetectionRangeArgs]):
     def manifest_inputs(self, args: DetectionRangeArgs) -> list[tuple[str, Path]]:
         return [
             ("config_file", Path(args.main_config)),
-            ("scenarios", Path(args.scenarios)),
         ]
 
     def load_threshold_data(self, args: DetectionRangeArgs) -> bool:
@@ -200,49 +196,49 @@ class DetectionRangeWorkflow(Workflow[DetectionRangeArgs]):
             )
         )
 
-        ascertainment_scenarios = read_griddle(args.scenarios)
         assert (
             load_intervention_date(args.main_config) == args.intervention_start_date
         ), (
             f"Intervention start date in config file ({load_intervention_date(args.main_config)}) does not match the expected date ({args.intervention_start_date})."
         )
 
-        for scenario in ascertainment_scenarios.iter_rows(named=True):
-            scenario_name = make_name(scenario)
-            print(f"Running scenario: {scenario_name}")
-            # Main calibration to symptom onset data
-            calibrate_onset.main(
-                output_dir=args.output_subdir,
-                subdir_name=scenario_name,
-                config_file=args.main_config,
-                ixa_scenario_overrides=scenario,
-                cache=args.cache,
-                refresh_cache=cache_refresh.flag,
-                reuse_across_binary=args.reuse_across_binary,
-            )
+        scenario = {"passive_detection_probability": 1.0}
+        scenario_name = make_name(scenario)
+        print(f"Running scenario: {scenario_name}")
 
-            # Generate figures for symptom onset calibration of each scenario
-            symptom_onset_figures.main(
-                output_subdir=args.output_subdir,
-                projection_date=args.projection_date,
-                calibration_subdir=scenario_name,
-                plot_incidence=False,
-                save_detection_rate=True,
-            )
+        # Main calibration to symptom onset data
+        calibrate_onset.main(
+            output_dir=args.output_subdir,
+            subdir_name=scenario_name,
+            config_file=args.main_config,
+            ixa_scenario_overrides=None,
+            cache=args.cache,
+            refresh_cache=cache_refresh.flag,
+            reuse_across_binary=args.reuse_across_binary,
+        )
 
-            rt_by_ratio_category.main(
-                output_subdir=args.output_subdir,
-                calibration_subdir=scenario_name,
-                projection_date=args.projection_date,
-                rt_window_days=15,
-            )
+        # Generate figures for symptom onset calibration
+        symptom_onset_figures.main(
+            output_subdir=args.output_subdir,
+            projection_date=args.projection_date,
+            calibration_subdir=scenario_name,
+            plot_incidence=False,
+            save_detection_rate=True,
+        )
+
+        rt_by_ratio_category.main(
+            output_subdir=args.output_subdir,
+            calibration_subdir=scenario_name,
+            projection_date=args.projection_date,
+            rt_window_days=15,
+        )
 
         posterior_pairs.run(run_dir=paths.output_dir(args.output_subdir))
 
-        # Generate the summary figures across scenarios
+        # Generate the summary figures
         summary_figures.main(
             output_subdir=args.output_subdir,
-            scenarios=ascertainment_scenarios,
+            scenarios=pl.DataFrame([scenario]),
             config_file=args.main_config,
             current_date=args.max_data_date,
             max_date=args.projection_date,
