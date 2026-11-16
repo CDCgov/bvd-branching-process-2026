@@ -135,12 +135,6 @@ class DetectionBandProcessor(NaturalHistoryProcessor):
                 pl.col("cumulative_confirmations")
                 .diff()
                 .over(order_by="date")
-                # The window's first row has no prior row to diff against, but
-                # cum_sum() above was re-based to 0 at recording_start, so the
-                # implicit baseline before the first row is 0: the first day's
-                # true incidence is its cumulative value itself, not 0. Filling
-                # with 0 here silently drops that day's cases (recording_start,
-                # e.g. June 1) from every downstream aggregate.
                 .fill_null(pl.col("cumulative_confirmations"))
                 .cast(
                     pl.Int64, strict=False
@@ -256,7 +250,7 @@ class DetectionBandProcessor(NaturalHistoryProcessor):
 
         if output_df.height == 0:
             return MAX_FLOAT
-
+        print(output_df)
         # Detection band distance function is calculated here once main filtering is done
         lower_detection, upper_detection = self.detection_band
         outside_bounds = output_df.filter(

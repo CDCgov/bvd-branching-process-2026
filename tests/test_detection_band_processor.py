@@ -292,11 +292,25 @@ def test_estimate_error_incidence_too_high(
     band_processor, band_test_outputs, band_test_target_dict, max_float
 ):
     """Test estimate_error rejects incidence that is too high"""
-    failed_target = band_test_target_dict.copy()
-    failed_target["cumulative_confirmation_incidence"] = [5, 7]
-    failed_target_df = pl.DataFrame(failed_target)
-    error = band_processor.estimate_error(band_test_outputs, failed_target_df)
+    early_failed_target = band_test_target_dict.copy()
+    late_failed_target = band_test_target_dict.copy()
+    success_target = band_test_target_dict.copy()
+    # First week is 10 cases, and last week is 10+14=24 cases
+    # incidence is too high above 10 * 0.6 = 6 or 24 * 0.6 = 14.4
+    early_failed_target["cumulative_confirmation_incidence"] = [7, 7]
+    late_failed_target["cumulative_confirmation_incidence"] = [4, 15]
+    success_target["cumulative_confirmation_incidence"] = [4, 7]
+    early_failed_target_df = pl.DataFrame(early_failed_target)
+    error = band_processor.estimate_error(band_test_outputs, early_failed_target_df)
     assert error == max_float
+
+    late_failed_target_df = pl.DataFrame(late_failed_target)
+    error = band_processor.estimate_error(band_test_outputs, late_failed_target_df)
+    assert error == max_float
+
+    success_target_df = pl.DataFrame(success_target)
+    error = band_processor.estimate_error(band_test_outputs, success_target_df)
+    assert error == 0.0
 
 
 def test_estimate_error_deaths_lower_threshold_too_high(

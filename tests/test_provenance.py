@@ -40,7 +40,6 @@ def test_git_info_resolves_inside_the_repo():
 def test_input_files_are_hashed(tmp_path):
     present = tmp_path / "config.json"
     present.write_bytes(b'{"k": 1}')
-    missing = tmp_path / "nope.json"
 
     manifest = provenance.build_manifest(
         command="x",
