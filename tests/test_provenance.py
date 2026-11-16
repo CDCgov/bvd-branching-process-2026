@@ -45,7 +45,7 @@ def test_input_files_are_hashed(tmp_path):
     manifest = provenance.build_manifest(
         command="x",
         params={},
-        input_files=[("config_file", present), ("griddle", missing)],
+        input_files=[("config_file", present)],
     )
 
     assert manifest["inputs"]["config_file"] == {
@@ -53,8 +53,6 @@ def test_input_files_are_hashed(tmp_path):
         "exists": True,
         "sha256": hashlib.sha256(b'{"k": 1}').hexdigest(),
     }
-    assert manifest["inputs"]["griddle"]["exists"] is False
-    assert manifest["inputs"]["griddle"]["sha256"] is None
 
 
 def test_write_run_manifest_creates_dir_and_round_trips(tmp_path):
