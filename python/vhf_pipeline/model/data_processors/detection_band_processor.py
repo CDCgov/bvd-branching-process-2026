@@ -250,7 +250,7 @@ class DetectionBandProcessor(NaturalHistoryProcessor):
 
         if output_df.height == 0:
             return MAX_FLOAT
-        print(output_df)
+
         # Detection band distance function is calculated here once main filtering is done
         lower_detection, upper_detection = self.detection_band
         outside_bounds = output_df.filter(
