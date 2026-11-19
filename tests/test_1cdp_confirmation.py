@@ -9,7 +9,12 @@ from vhf_pipeline.pipeline.load_1cdp_confirmation import (
 def _raw() -> pl.DataFrame:
     return pl.DataFrame(
         {
-            "date": ["2026-06-01", "2026-06-01", "2026-06-02", "2026-06-02"],
+            "date": [
+                dt.date(2026, 6, 1),
+                dt.date(2026, 6, 1),
+                dt.date(2026, 6, 2),
+                dt.date(2026, 6, 2),
+            ],
             "iso3c": ["COD", "UGA", "COD", "FRA"],
             "cases_confirmed_incident": [10, 3, 20, 1],
         }

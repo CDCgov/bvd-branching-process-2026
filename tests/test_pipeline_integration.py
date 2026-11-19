@@ -89,6 +89,12 @@ def test_pipeline_end_to_end(tmp_path, base_config, monkeypatch):
     (data_dir / "threshold_data_500.csv").write_text(
         "threshold,threshold_lag,threshold_date\n500.0,0,2026-05-24\n"
     )
+    # Write that the lower threshold is 0 so that the model does not reject the configuration.
+    # save the outputs to a file named like that in the config
+    # this is fragile if the config file changes
+    (data_dir / "threshold_data_50.csv").write_text(
+        "threshold,threshold_lag,threshold_date\n0.0,0,2026-05-24\n"
+    )
     # Two qualifying epiweeks (ISO weeks 25-26: 2026-06-15 to 2026-06-28).
     # threshold_date (2026-05-24) + 21 days = 2026-06-14; both weeks qualify.
     # Two epiweeks are required so that save_particle_detection_rate gets

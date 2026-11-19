@@ -6,7 +6,7 @@ from vhf_pipeline.utils import get_cumulative_symptomatic_cases
 
 def _make_prevalence_df(rows: list[dict]) -> pl.DataFrame:
     """Build a minimal prevalence report DataFrame from a list of row dicts."""
-    return pl.DataFrame(rows).with_columns(pl.col("date").cast(pl.Date))
+    return pl.DataFrame(rows)
 
 
 # ---------------------------------------------------------------------------

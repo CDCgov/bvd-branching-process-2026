@@ -1,7 +1,7 @@
 from typing import Literal
 
 from .base_class import NaturalHistoryProcessor
-from .detection_band_processor import DetectionBandProcessor
+from .detection_band_processor import DetectionBandProcessor, compute_epiweek_error
 
 
 def init_processor(
@@ -17,4 +17,5 @@ __all__ = [
     "NaturalHistoryProcessor",
     "DetectionBandProcessor",
     "init_processor",
+    "compute_epiweek_error",
 ]

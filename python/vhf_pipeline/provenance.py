@@ -26,7 +26,6 @@ _TRACKED_DISTRIBUTIONS = (
     "vhf_pipeline",
     "cfa-mrp",
     "calibrationtools",
-    "griddler",
     "numpy",
     "scipy",
     "polars",
@@ -50,7 +49,7 @@ def build_manifest(
         command: How the run was invoked, e.g. ``"workflow detection"``.
         params: The resolved arguments the run was given.
         input_files: ``(label, path)`` pairs of input files to hash, e.g. the
-            config and griddle, so the manifest pins their exact contents.
+            config, so the manifest pins their exact contents.
 
     Returns:
         A JSON-serialisable manifest dict.

@@ -36,12 +36,12 @@ def exponential_forward_fill(
         .join(
             pl.DataFrame(
                 {
-                    "date": pl.datetime_range(
-                        dt.datetime.combine(min_date, dt.time()),
-                        dt.datetime.combine(max_date, dt.time()),
+                    "date": pl.date_range(
+                        start=min_date,
+                        end=max_date,
                         interval="1d",
                         eager=True,
-                    ).cast(pl.Date)
+                    )
                 }
             ),
             how="cross",

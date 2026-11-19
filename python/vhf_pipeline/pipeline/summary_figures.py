@@ -10,6 +10,7 @@ import seaborn as sns
 
 from vhf_pipeline import paths
 from vhf_pipeline.utils import (
+    DATE_SCHEMA_OVERRIDES,
     categorize_by_breaks,
     get_cumulative_symptomatic_cases,
     load_intervention_date,
@@ -24,7 +25,7 @@ def categorize_cumulative_cases(
 ) -> pl.DataFrame:
     return categorize_by_breaks(
         get_cumulative_symptomatic_cases(
-            df.filter(pl.col("date").cast(pl.Date) <= max_date),
+            df.filter(pl.col("date") <= max_date),
             max_date=max_date,
             detected_only=detected_only,
         ),
@@ -88,7 +89,9 @@ def _plot_cumulative_stacked_bars(
         prevalence_report_file_path = (
             output_dir / scenario_name / "projection" / "all_prevalence_reports.csv"
         )
-        prevalence_report = pl.read_csv(prevalence_report_file_path)
+        prevalence_report = pl.read_csv(
+            prevalence_report_file_path, schema_overrides=DATE_SCHEMA_OVERRIDES
+        )
 
         detected_only = strategy == "detected"
         scenario_sizes = group_sizes(
@@ -119,7 +122,7 @@ def _plot_cumulative_stacked_bars(
     sns.set_palette(sns.color_palette(custom_colors))
 
     ax = sns.barplot(
-        data=all_scenario_sizes,
+        data=all_scenario_sizes.to_pandas(),
         x="scenario",
         y="cumulative_proportion",
         hue="count_category",
@@ -174,7 +177,7 @@ def _collect_rt_estimates(
     date_range: pl.Expr,
 ) -> pl.DataFrame:
     return (
-        rt_report.with_columns(pl.col("infection_date").cast(pl.Date).alias("date"))
+        rt_report.with_columns(pl.col("infection_date").alias("date"))
         .filter(pl.col("date").is_in(date_range))
         .select(["particle_id", "scenario", "avg_onward_infections"])
         .group_by("scenario")
@@ -195,8 +198,7 @@ def _collect_known_case_estimates(
     date_range: pl.Expr,
 ) -> pl.DataFrame:
     return (
-        confirmations_df.with_columns(pl.col("date").cast(pl.Date))
-        .filter(
+        confirmations_df.filter(
             (pl.col("case_status") == "Confirmed") & (pl.col("date").is_in(date_range))
         )
         .with_columns(
@@ -271,9 +273,7 @@ def _plot_current_rt_estimates_boxplots(
 
     plt.figure(figsize=(12, 6))
     sns.boxplot(
-        data=rt_estimates.filter(
-            pl.col("infection_date").cast(pl.Date) == current_date
-        ),
+        data=rt_estimates.filter(pl.col("infection_date") == current_date).to_pandas(),
         x="scenario",
         y="avg_onward_infections",
     )
@@ -303,7 +303,10 @@ def _plot_outbreak_size_boxplots(
         scenario_name = make_name(parameters)
         projection_dir = output_dir / scenario_name / "projection"
 
-        prevalence_report = pl.read_csv(projection_dir / "all_prevalence_reports.csv")
+        prevalence_report = pl.read_csv(
+            projection_dir / "all_prevalence_reports.csv",
+            schema_overrides=DATE_SCHEMA_OVERRIDES,
+        )
 
         sizes = _collect_outbreak_size_for_boxplot(
             prevalence_report,
@@ -318,7 +321,7 @@ def _plot_outbreak_size_boxplots(
     # Create boxplot
     plt.figure(figsize=(12, 6))
     sns.boxplot(
-        data=all_sizes.filter(pl.col("date_type") == "Report Date"),
+        data=all_sizes.filter(pl.col("date_type") == "Report Date").to_pandas(),
         x="scenario",
         y="count",
     )
@@ -337,7 +340,7 @@ def _plot_outbreak_size_boxplots(
     # Create projection boxplot
     plt.figure(figsize=(12, 6))
     sns.boxplot(
-        data=all_sizes.filter(pl.col("date_type") == "Projection Date"),
+        data=all_sizes.filter(pl.col("date_type") == "Projection Date").to_pandas(),
         x="scenario",
         y="count",
     )
@@ -379,19 +382,25 @@ def main(
         scenario_name = make_name(parameters)
         projection_dir = output_dir / scenario_name / "projection"
 
-        rt_report = pl.read_csv(projection_dir / "all_rt_reports.csv")
+        rt_report = pl.read_csv(
+            projection_dir / "all_rt_reports.csv",
+            schema_overrides=DATE_SCHEMA_OVERRIDES,
+        )
         grouped_rt_reports.append(
             rt_report.with_columns(pl.lit(scenario_name).alias("scenario"))
         )
         confirmation_report = pl.read_csv(
-            projection_dir / "all_confirmation_incidence_reports.csv"
+            projection_dir / "all_confirmation_incidence_reports.csv",
+            schema_overrides=DATE_SCHEMA_OVERRIDES,
         )
         grouped_confirmation_reports.append(
             confirmation_report.with_columns(pl.lit(scenario_name).alias("scenario"))
         )
 
         prevalence_report_file_path = projection_dir / "all_prevalence_reports.csv"
-        prevalence_report = pl.read_csv(prevalence_report_file_path)
+        prevalence_report = pl.read_csv(
+            prevalence_report_file_path, schema_overrides=DATE_SCHEMA_OVERRIDES
+        )
 
         all_size_report = _collect_current_size(
             prevalence_report=prevalence_report, current_date=current_date
