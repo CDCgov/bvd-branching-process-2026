@@ -22,17 +22,15 @@ uv run cargo build -r
 uv run vhf model run
 ```
 
-3. Run a small version of the main workflow using `mise run test-workflow`, which requires the foundry data, see the section below to set up a foundry token.
+3. Run a small version of the main workflow using `mise run test-workflow`.
 
-4. Run the main analysis workflow using `mise run detection`, which also requires the foundry data.
+4. Run the main analysis workflow using `mise run detection`.
 
 Each workflow run writes a `manifest.json` at the root of its output directory recording how the run was produced: the git commit/branch (and whether the tree was dirty), the `vhf_pipeline`/Python/key dependency versions, the resolved command and arguments, and the SHA-256 of the config and griddle it ran with — enough to trace a result back to the code, environment, and inputs that made it.
 
-## Foundry data
+## Confirmation incidence data
 
-1. Get a Foundry token: Go to 1CDP, account, create a token
-2. Copy `.env.example` to `.env`. Fill in the Token and make an RID tag under `data/rid_tags.json`.
-3. Run `get_foundry_data.py` or include the `main` function in your pipeline.
+The detection workflow uses `data/daily_confirmation_incidence.csv`, which contains dates, daily confirmed counts, and `case_status` in `date,count,case_status` format. This file is derived from the CSV file downloaded from the CDC Ebola outbreak situation summary page: https://www.cdc.gov/ebola/situation-summary/index.html. (Last accessed 2026-11-18.)
 
 ## Repository layout
 
