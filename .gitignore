@@ -37,9 +37,9 @@ output/
 *.zip
 
 # Allowlist
+!data/daily_confirmation_incidence.csv
 # !your_data_file.csv
 # !your_data_directory/
-
 
 #####
 # Python

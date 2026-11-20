@@ -9,10 +9,6 @@ from typing import Literal
 import polars as pl
 
 from vhf_pipeline.cli.run_model import _load_json
-from vhf_pipeline.pipeline.load_1cdp_confirmation import (
-    ISO3C_VALUES,
-    load_1cdp_confirmation,
-)
 
 from .. import paths
 from ..pipeline import (
@@ -35,7 +31,6 @@ THRESHOLD_LOWER_BOUND = 50
 PROJECTION_DATE = dt.date(2026, 9, 30)  # The date to project to for the figures.
 MAX_DATA_DATE = dt.date(2026, 9, 8)  # The last date of the data used for calibration.
 INTERVENTION_START_DATE = dt.date(2026, 5, 24)  # The date of the interventions
-OUTBREAK_ISO3C_EXTENT = ["COD"]
 
 
 @dataclass(frozen=True)
@@ -50,7 +45,6 @@ class DetectionRangeArgs:
     max_data_date: dt.date = MAX_DATA_DATE
     intervention_start_date: dt.date = INTERVENTION_START_DATE
     projection_date: dt.date = PROJECTION_DATE
-    iso3c_codes: list[ISO3C_VALUES] = (OUTBREAK_ISO3C_EXTENT,)
 
 
 class CacheRefresh:
@@ -83,12 +77,6 @@ class DetectionRangeWorkflow(Workflow[DetectionRangeArgs]):
             "--threshold-lower-bound",
             type=int,
             default=THRESHOLD_LOWER_BOUND,
-        )
-        parser.add_argument(
-            "--iso3c-codes",
-            nargs="+",
-            default=OUTBREAK_ISO3C_EXTENT,
-            help="The ISO3C codes to include in the calibration.",
         )
 
         # Parse date input parameters
@@ -144,7 +132,6 @@ class DetectionRangeWorkflow(Workflow[DetectionRangeArgs]):
             max_data_date=ns.max_data_date,
             intervention_start_date=ns.intervention_start_date,
             projection_date=ns.projection_date,
-            iso3c_codes=ns.iso3c_codes,
         )
 
     def manifest_dir(self, args: DetectionRangeArgs) -> Path:
@@ -188,13 +175,31 @@ class DetectionRangeWorkflow(Workflow[DetectionRangeArgs]):
         cache_refresh.update(self.load_threshold_data(args))
         config = _load_json(args.main_config)
 
-        cache_refresh.update(
-            load_1cdp_confirmation(
-                filename=config["target_data_file"]["confirmation"],
-                max_data_date=args.max_data_date,
-                iso3c=args.iso3c_codes,
-            )
+        # Copy the checked-in daily confirmation CSV into the configured input directory,
+        # restricting it to the calibration cutoff supplied by args.max_data_date.
+        confirmation_source = Path("data/daily_confirmation_incidence.csv")
+        confirmation_target = (
+            paths.data_input_dir() / config["target_data_file"]["confirmation"]
         )
+        confirmation_target.parent.mkdir(parents=True, exist_ok=True)
+
+        confirmation_data = (
+            pl.read_csv(confirmation_source)
+            .with_columns(pl.col("date").str.to_date(strict=True))
+            .filter(pl.col("date") <= args.max_data_date)
+        )
+        existing_confirmation_data = (
+            pl.read_csv(confirmation_target).with_columns(
+                pl.col("date").str.to_date(strict=True)
+            )
+            if confirmation_target.exists()
+            else None
+        )
+        if existing_confirmation_data is None or not confirmation_data.equals(
+            existing_confirmation_data
+        ):
+            confirmation_data.write_csv(confirmation_target)
+            cache_refresh.update(True)
 
         assert (
             load_intervention_date(args.main_config) == args.intervention_start_date
