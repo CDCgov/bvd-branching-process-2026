@@ -7,7 +7,7 @@ A config file is a dictionary of objects referenced during calibration and simul
     "priors_file": "experiments/detection/priors.json", // The priors used to propose parameters for calibration
     "target_data_file": {
         "confirmation": "daily_confirmation_incidence.csv", // The confirmation incidence of the outbreak at the national level - copied into `DATA_INPUT_DIR`
-        "deaths_upper_threshold": "threshold_data_500.csv", // 500 us the upper bound for confirmed deaths as of intervention start - stored in `DATA_INPUT_DIR`
+        "deaths_upper_threshold": "threshold_data_500.csv", // 500 is the upper bound for confirmed deaths as of intervention start - stored in `DATA_INPUT_DIR`
         "deaths_lower_threshold": "threshold_data_50.csv" // 50 is the lower bound for confirmed deaths as of interventions start - stored in `DATA_INPUT_DIR`
     },
     "strategy": "detection_band", //The detection workflow strategy
