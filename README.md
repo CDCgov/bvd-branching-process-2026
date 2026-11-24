@@ -48,8 +48,8 @@ The Rust model lives in `src/` (crate `vhf_model`, binary `target/release/vhf_mo
 
 ## Project admins
 
-- Will Koval <{{ad71@cdc.gov}}> (CDC/IOD/ORR/CFA)
-- Eric Mooring <{{pgv5@cdc.gov}}> (CDDC/IOD/ORR/CFA)
+- Will Koval <{{ad71@cdc.gov}}> (CDC/OD/ORR/CFA)
+- Eric Mooring <{{pgv5@cdc.gov}}> (CDC/OD/ORR/CFA)
 - Guido Camargo España, <{{ukd0@cdc.gov}}> (CDC/OD/ORR/CFA)
 
 ## Disclaimers
