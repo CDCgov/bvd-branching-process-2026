@@ -2,7 +2,7 @@
 
 ## Overview
 
-This repo contains a branching process model developed during and immediately after the fall 2025 viral hemorrhagic fever response. Primarily, this codebase serves as a streamlined version of the model built for the Ebolavirus disease (EVD) outbreak in the Democratic Republic of the Congo. The model was applied to the 2026 Bundibugyo virus disease outbreak.
+This repo contains a branching process model developed during and immediately after the fall 2025 viral hemorrhagic fever response. Primarily, this codebase serves as a streamlined version of the model built for the Ebolavirus disease (EVD) outbreak in the Democratic Republic of the Congo. The model was applied to the 2026 Bundibugyo virus disease outbreak and used to generate the analysis described in the [Technical Brief: Trajectory of Ebola Outbreak Caused By Bundibugyo Virus - Democratic Republic of the Congo, 2026](https://www.cdc.gov/cfa-modeling-and-forecasting/technical-briefs/ebola-trajectory-drc2026.html).
 
 ## Getting started
 

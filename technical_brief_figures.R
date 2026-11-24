@@ -2,6 +2,9 @@
 
 ## Script originally prepared by Inga Holmdahl
 
+## This script produces the figures in the technical brief available at
+## https://www.cdc.gov/cfa-modeling-and-forecasting/technical-briefs/ebola-trajectory-drc2026.html
+
 ## Two input files are needed for this script
 ## 1. target_data.csv
 ## 2. all_simulations.csv
